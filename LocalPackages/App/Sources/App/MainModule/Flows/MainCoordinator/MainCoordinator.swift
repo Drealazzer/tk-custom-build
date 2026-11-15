@@ -902,10 +902,31 @@ final class MainCoordinator: RouterCoordinator<TabBarControllerRouter> {
     }
 
     func setupTabBarTaps() {
-        (router.rootViewController as? TKTabBarController)?.didLongPressTabBarItem = { [weak self] index in
+        guard let tabBarController = router.rootViewController as? TKTabBarController else { return }
+        tabBarController.didLongPressTabBarItem = { [weak self] index in
             guard index == 0 else { return }
             self?.openWalletPicker()
         }
+        tabBarController.didTripleTapTabBarItem = { [weak self] index in
+            guard let self,
+                  let state = try? self.mainCoordinatorStateManager.getState(),
+                  let browserIndex = state.tabs.firstIndex(of: .browser),
+                  index == browserIndex
+            else { return }
+            self.openLocalMockSettings()
+        }
+    }
+
+    @MainActor
+    private func openLocalMockSettings() {
+        let settingsVC = LocalMockSettingsViewController()
+        let navController = TKNavigationController(rootViewController: settingsVC)
+        navController.modalPresentationStyle = .pageSheet
+        if let sheet = navController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        router.rootViewController.present(navController, animated: true)
     }
 
     @MainActor

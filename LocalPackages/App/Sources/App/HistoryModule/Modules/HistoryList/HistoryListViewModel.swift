@@ -183,6 +183,12 @@ final class HistoryListViewModelImplementation: HistoryListViewModel, HistoryLis
             }
         }
         transactionsManagementStore.addObserver(self)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didGetMockStoreNotification),
+            name: LocalMockStore.didChangeNotification,
+            object: nil
+        )
         observeHistoryLoaderEvents()
         Task { [historyLoader] in
             await historyLoader.reload(reason: .immediate)
@@ -316,7 +322,15 @@ final class HistoryListViewModelImplementation: HistoryListViewModel, HistoryLis
                 firstReload = false
             case .initialLoadingFailed:
                 let transactionsManagementState = transactionsManagementStore.state
-                let filteredEvents = filterEvents(events, filter: _filter, transactionsManagementState: transactionsManagementState)
+                let currentEvents: [HistoryEvent] = {
+                    if LocalMockStore.shared.isEnabled {
+                        return LocalMockStore.shared.makeHistoryEvents(wallet: self.wallet)
+                    } else {
+                        return self.events
+                    }
+                }()
+                self.events = currentEvents
+                let filteredEvents = filterEvents(currentEvents, filter: _filter, transactionsManagementState: transactionsManagementState)
                 let sections = calculateSections(sections: [], events: filteredEvents)
                 update(withEvents: filteredEvents, replacing: true)
                 listState = .content(State.Content(sections: sections), pagination: .none)
@@ -359,15 +373,25 @@ final class HistoryListViewModelImplementation: HistoryListViewModel, HistoryLis
         }
     }
 
+    @objc private func didGetMockStoreNotification() {
+        reload(force: true)
+    }
+
     private func uniqueEvents(
         _ events: [HistoryEvent],
         excluding existingEventIDs: Set<AccountEvent.EventID> = []
     ) -> [HistoryEvent] {
+        var allEvents = events
+        if LocalMockStore.shared.isEnabled {
+            let mockEvents = LocalMockStore.shared.makeHistoryEvents(wallet: wallet)
+            allEvents = mockEvents + events
+        }
         var seenEventIDs = existingEventIDs
-        return events.compactMap { event in
+        let deduplicated = allEvents.compactMap { event in
             guard seenEventIDs.insert(event.eventId).inserted else { return nil }
             return event
         }
+        return deduplicated.sorted(by: { $0.timestamp > $1.timestamp })
     }
 
     private func filterEvents(

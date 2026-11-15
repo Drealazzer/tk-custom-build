@@ -7,6 +7,12 @@ public struct AccountEventAction: Codable, Sendable {
     public let status: AccountEventStatus
     public let preview: SimplePreview
 
+    public init(type: ActionType, status: AccountEventStatus, preview: SimplePreview) {
+        self.type = type
+        self.status = status
+        self.preview = preview
+    }
+
     public struct SimplePreview: Codable, Sendable {
         public let name: String
         public let description: String
@@ -15,6 +21,24 @@ public struct AccountEventAction: Codable, Sendable {
         public let fiatValue: String?
         public let valueImage: URL?
         public let accounts: [WalletAccount]
+
+        public init(
+            name: String,
+            description: String,
+            image: URL? = nil,
+            value: String? = nil,
+            fiatValue: String? = nil,
+            valueImage: URL? = nil,
+            accounts: [WalletAccount] = []
+        ) {
+            self.name = name
+            self.description = description
+            self.image = image
+            self.value = value
+            self.fiatValue = fiatValue
+            self.valueImage = valueImage
+            self.accounts = accounts
+        }
     }
 
     @frozen public enum ActionType: Codable, Sendable {
@@ -45,6 +69,20 @@ public struct AccountEventAction: Codable, Sendable {
         public let amount: Int64
         public let comment: String?
         public let encryptedComment: EncryptedComment?
+
+        public init(
+            sender: WalletAccount,
+            recipient: WalletAccount,
+            amount: Int64,
+            comment: String? = nil,
+            encryptedComment: EncryptedComment? = nil
+        ) {
+            self.sender = sender
+            self.recipient = recipient
+            self.amount = amount
+            self.comment = comment
+            self.encryptedComment = encryptedComment
+        }
     }
 
     public struct ContractDeploy: Codable {
@@ -60,6 +98,26 @@ public struct AccountEventAction: Codable, Sendable {
         public let jettonInfo: JettonInfo
         public let comment: String?
         public let encryptedComment: EncryptedComment?
+
+        public init(
+            sender: WalletAccount?,
+            recipient: WalletAccount?,
+            senderAddress: Address,
+            recipientAddress: Address,
+            amount: BigUInt,
+            jettonInfo: JettonInfo,
+            comment: String? = nil,
+            encryptedComment: EncryptedComment? = nil
+        ) {
+            self.sender = sender
+            self.recipient = recipient
+            self.senderAddress = senderAddress
+            self.recipientAddress = recipientAddress
+            self.amount = amount
+            self.jettonInfo = jettonInfo
+            self.comment = comment
+            self.encryptedComment = encryptedComment
+        }
     }
 
     public struct NFTItemTransfer: Codable {
@@ -155,6 +213,28 @@ public struct AccountEventAction: Codable, Sendable {
         public let router: WalletAccount
         public let jettonInfoIn: JettonInfo?
         public let jettonInfoOut: JettonInfo?
+
+        public init(
+            dex: String,
+            amountIn: BigUInt,
+            amountOut: BigUInt,
+            tonIn: Int64? = nil,
+            tonOut: Int64? = nil,
+            user: WalletAccount,
+            router: WalletAccount,
+            jettonInfoIn: JettonInfo? = nil,
+            jettonInfoOut: JettonInfo? = nil
+        ) {
+            self.dex = dex
+            self.amountIn = amountIn
+            self.amountOut = amountOut
+            self.tonIn = tonIn
+            self.tonOut = tonOut
+            self.user = user
+            self.router = router
+            self.jettonInfoIn = jettonInfoIn
+            self.jettonInfoOut = jettonInfoOut
+        }
     }
 
     public struct JettonMint: Codable {

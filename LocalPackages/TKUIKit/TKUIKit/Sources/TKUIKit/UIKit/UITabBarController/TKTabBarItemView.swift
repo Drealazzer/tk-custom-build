@@ -4,6 +4,7 @@ import UIKit
 final class TKTabBarItemView: UIView {
     let iconContainer = UIView()
     var onSelect: (() -> Void)?
+    var onTripleTap: (() -> Void)?
 
     var isItemSelected = false {
         didSet { applySelection() }
@@ -81,6 +82,9 @@ private extension TKTabBarItemView {
         }
 
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+        let tripleTap = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
+        tripleTap.numberOfTapsRequired = 3
+        addGestureRecognizer(tripleTap)
 
         if #available(iOS 17.0, *) {
             registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (item: TKTabBarItemView, _) in
@@ -92,6 +96,11 @@ private extension TKTabBarItemView {
     @objc
     func handleTap() {
         onSelect?()
+    }
+
+    @objc
+    func handleTripleTap() {
+        onTripleTap?()
     }
 
     func applySelection() {

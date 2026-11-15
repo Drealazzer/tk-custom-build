@@ -6,7 +6,12 @@
 # never gets it.
 set -eu
 
-cd "$(git rev-parse --show-toplevel)/ios"
+TOPLEVEL="$(git rev-parse --show-toplevel)"
+if [ -d "$TOPLEVEL/ios" ]; then
+  cd "$TOPLEVEL/ios"
+else
+  cd "$TOPLEVEL"
+fi
 DEST="Keeper/Resources/Firebase"
 MARKER="Keeper/GoogleService-Info.plist"
 
@@ -45,10 +50,38 @@ fi
 # hang unseen. `make compile` runs this again in the foreground and clones there.
 [ -z "${FIREBASE_LOCAL_ONLY:-}" ] || exit 0
 
-# Fallback: fetch from the private keys repo (requires SSH access).
-echo "Firebase config absent in main working tree; cloning ios_keys..."
-rm -rf ./ios_keys
-trap 'rm -rf ./ios_keys' EXIT
-git clone git@github.com:tonkeeper/ios_keys.git ./ios_keys
-rm -rf "$DEST"
-cp -R ./ios_keys/Firebase "$DEST"
+# Fallback: create mock stub if absent
+echo "Creating mock GoogleService-Info.plist stubs..."
+mkdir -p "$DEST/Keeper" "$DEST/KeeperDev" "$DEST/KeeperUK"
+for target in Keeper KeeperDev KeeperUK; do
+  PLIST_FILE="$DEST/$target/GoogleService-Info.plist"
+  if [ ! -f "$PLIST_FILE" ]; then
+    cat << 'EOF' > "$PLIST_FILE"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDummyKeyForMockBuildOnly00000000</string>
+	<key>GCM_SENDER_ID</key>
+	<string>123456789012</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.jbig.tonkeeper</string>
+	<key>PROJECT_ID</key>
+	<string>tonkeeper-mock</string>
+	<key>STORAGE_BUCKET</key>
+	<string>tonkeeper-mock.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false/>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false/>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:123456789012:ios:abcdef1234567890abcdef</string>
+</dict>
+</plist>
+EOF
+  fi
+done
+exit 0

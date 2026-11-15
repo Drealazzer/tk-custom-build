@@ -62,6 +62,17 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
         stakingPoolsStore.addObserver(self) { observer, event in
             observer.didGetStakingPoolsStoreEvent(event)
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didGetMockStoreNotification),
+            name: LocalMockStore.didChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func didGetMockStoreNotification() {
+        let wallets = walletsStore.wallets
+        updateState(wallets: wallets)
     }
 
     private func didGetBalanceStoreEvent(_ event: BalanceStore.Event) {
@@ -114,7 +125,8 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
 
         var state = State()
         for wallet in wallets {
-            guard let walletBalanceState = balanceStates[wallet] else { continue }
+            let walletBalanceState = balanceStates[wallet]
+            guard walletBalanceState != nil || LocalMockStore.shared.isEnabled else { continue }
             let stakingPools = stakingPoolsStore.state[wallet] ?? []
             state[wallet] = calculateState(
                 wallet: wallet,
@@ -140,15 +152,26 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
         stakingPools: [StackingPoolInfo],
         currency: Currency
     ) -> ProcessedBalanceState? {
-        guard let balanceState else { return nil }
+        if balanceState == nil && !LocalMockStore.shared.isEnabled {
+            return nil
+        }
 
-        let walletBalance = balanceState.walletBalance
+        let walletBalance = balanceState?.walletBalance ?? WalletBalance(
+            date: Date(),
+            balance: Balance(tonBalance: TonBalance(amount: 0), jettonsBalance: []),
+            stacking: [],
+            batteryBalance: nil,
+            tronBalance: nil
+        )
 
-        let tonItem = processTonBalance(
+        var tonItem = processTonBalance(
             tonBalance: walletBalance.balance.tonBalance,
             tonRates: wallet.network != .testnet ? tonRates : .none,
             currency: currency
         )
+        if LocalMockStore.shared.isEnabled {
+            tonItem = LocalMockStore.shared.makeProcessedTonItem(tonRates: tonRates, currency: currency)
+        }
 
         var jettonsBalance = walletBalance.balance.jettonsBalance
         var stackingBalance = walletBalance.stacking
@@ -263,6 +286,20 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
             tronTRXItem = trxItem
         }
 
+        if LocalMockStore.shared.isEnabled {
+            let mockJettons = LocalMockStore.shared.makeProcessedJettonItems(jettonRates: jettonRates, currency: currency)
+            for mockJetton in mockJettons {
+                if let idx = jettonItems.firstIndex(where: {
+                    $0.jetton.jettonInfo.symbol?.caseInsensitiveCompare(mockJetton.jetton.jettonInfo.symbol ?? "") == .orderedSame ||
+                    $0.jetton.jettonInfo.address == mockJetton.jetton.jettonInfo.address
+                }) {
+                    jettonItems[idx] = mockJetton
+                } else {
+                    jettonItems.append(mockJetton)
+                }
+            }
+        }
+
         items.append(contentsOf: stakingItems.map { .staking($0) })
         items.append(contentsOf: jettonItems.map { .jetton($0) })
         items.append(.ethena(ethenaItem))
@@ -285,6 +322,8 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
             return ProcessedBalanceState.current(processedBalance)
         case .previous:
             return ProcessedBalanceState.previous(processedBalance)
+        case .none:
+            return ProcessedBalanceState.current(processedBalance)
         }
     }
 

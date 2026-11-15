@@ -14,6 +14,7 @@ public final class TKTabBarView: UIView {
 
     public var didSelectItem: ((Int) -> Void)?
     public var didLongPressItem: ((Int) -> Void)?
+    public var didTripleTapItem: ((Int) -> Void)?
 
     public var items = [Item]() {
         didSet {
@@ -89,6 +90,7 @@ private extension TKTabBarView {
             let itemView = TKTabBarItemView()
             itemView.configure(title: item.title, image: item.image)
             itemView.onSelect = { [weak self] in self?.didSelectItem?(index) }
+            itemView.onTripleTap = { [weak self] in self?.didTripleTapItem?(index) }
             stackView.addArrangedSubview(itemView)
             return itemView
         }

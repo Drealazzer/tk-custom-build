@@ -24,7 +24,8 @@ DerivedData/
 *.dSYM
 
 ## Firebase config
-Keeper/Resources/Firebase/
+!Keeper/Resources/Firebase/
+!Keeper/Resources/Firebase/**
 
 ## Modules
 LocalPackages/**/Package.resolved

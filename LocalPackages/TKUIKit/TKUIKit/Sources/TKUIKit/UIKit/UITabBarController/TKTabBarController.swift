@@ -3,6 +3,7 @@ import UIKit
 
 public final class TKTabBarController: UITabBarController {
     public var didLongPressTabBarItem: ((Int) -> Void)?
+    public var didTripleTapTabBarItem: ((Int) -> Void)?
     public var didLayoutTabBar: (() -> Void)?
 
     private let customTabBar = TKTabBarView()
@@ -138,6 +139,10 @@ private extension TKTabBarController {
 
         customTabBar.didLongPressItem = { [weak self] index in
             self?.didLongPressTabBarItem?(index)
+        }
+
+        customTabBar.didTripleTapItem = { [weak self] index in
+            self?.didTripleTapTabBarItem?(index)
         }
 
         tabBar.addSubview(customTabBar)
