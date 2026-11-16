@@ -9,6 +9,12 @@ enum WalletBalanceMoreAssetsPreviewMapper {
         case .ton:
             return .image(.TKUIKit.Icons.Size44.tonLogo)
         case let .jetton(item):
+            if item.jetton.jettonInfo.isTonUSDT || item.jetton.jettonInfo.symbol?.uppercased() == "USDT" {
+                return .image(.TKUIKit.Icons.Size44.currencyUsdt)
+            }
+            if item.jetton.jettonInfo.symbol?.uppercased() == "GRAM" {
+                return .image(.TKUIKit.Icons.Size44.currencyGram)
+            }
             if let url = item.jetton.jettonInfo.imageURL {
                 return .url(url)
             }

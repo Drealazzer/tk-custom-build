@@ -248,6 +248,24 @@ public final class LocalMockStore: @unchecked Sendable {
             guard !seenAddresses.contains(jettonAddress) else { continue }
             seenAddresses.insert(jettonAddress)
 
+            let tokenImageURL: URL? = {
+                if let raw = token.imageURL, let url = URL(string: raw) {
+                    return url
+                }
+                switch token.symbol.uppercased() {
+                case "USDT":
+                    return URL(string: "https://cache.tonapi.io/img/token/usdt.png")
+                case "NOT":
+                    return URL(string: "https://cache.tonapi.io/img/token/notcoin.png")
+                case "DOGS":
+                    return URL(string: "https://cache.tonapi.io/img/token/dogs.png")
+                case "GRAM":
+                    return URL(string: "https://cache.tonapi.io/img/token/gram.png")
+                default:
+                    return nil
+                }
+            }()
+
             let jettonInfo = JettonInfo(
                 isTransferable: true,
                 hasCustomPayload: false,
@@ -256,7 +274,7 @@ public final class LocalMockStore: @unchecked Sendable {
                 name: token.name,
                 symbol: token.symbol,
                 verification: .whitelist,
-                imageURL: nil
+                imageURL: tokenImageURL
             )
             let jettonItem = JettonItem(jettonInfo: jettonInfo, walletAddress: nil)
 
@@ -384,6 +402,21 @@ public final class LocalMockStore: @unchecked Sendable {
                     }
                     return walletAddress
                 }()
+                let eventImageURL: URL? = {
+                    switch mockEvent.tokenSymbol.uppercased() {
+                    case "USDT":
+                        return URL(string: "https://cache.tonapi.io/img/token/usdt.png")
+                    case "NOT":
+                        return URL(string: "https://cache.tonapi.io/img/token/notcoin.png")
+                    case "DOGS":
+                        return URL(string: "https://cache.tonapi.io/img/token/dogs.png")
+                    case "GRAM":
+                        return URL(string: "https://cache.tonapi.io/img/token/gram.png")
+                    default:
+                        return nil
+                    }
+                }()
+
                 let jettonInfo = JettonInfo(
                     isTransferable: true,
                     hasCustomPayload: false,
@@ -392,7 +425,7 @@ public final class LocalMockStore: @unchecked Sendable {
                     name: mockEvent.tokenSymbol,
                     symbol: mockEvent.tokenSymbol,
                     verification: .whitelist,
-                    imageURL: nil
+                    imageURL: eventImageURL
                 )
 
                 switch mockEvent.type {

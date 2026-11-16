@@ -79,10 +79,17 @@ struct JettonTokenDetailsConfigurator: TokenDetailsConfigurator {
             )
         }
 
+        let imageSource: TKImage = {
+            if jettonItem.jettonInfo.isTonUSDT || jettonItem.jettonInfo.symbol?.uppercased() == "USDT" {
+                return .image(.TKUIKit.Icons.Size96.currencyUsdt)
+            }
+            return .urlImage(jettonItem.jettonInfo.imageURL)
+        }()
+
         return TokenDetailsModel(
             title: jettonItem.jettonInfo.name,
             caption: caption,
-            image: .urlImage(jettonItem.jettonInfo.imageURL),
+            image: imageSource,
             network: wallet.tron != nil && jettonItem.jettonInfo.isTonUSDT ? .ton : .none,
             tokenAmount: tokenAmount,
             convertedAmount: convertedAmount,

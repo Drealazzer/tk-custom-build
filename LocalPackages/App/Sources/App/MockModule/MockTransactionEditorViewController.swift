@@ -41,6 +41,7 @@ final class MockTransactionEditorViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         loadData()
+        setupKeyboardObservers()
     }
 
     private func setupUI() {
@@ -54,6 +55,11 @@ final class MockTransactionEditorViewController: UIViewController {
             action: #selector(didTapCancel)
         )
 
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(didTapBackground))
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+
+        scrollView.keyboardDismissMode = .onDrag
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
 
@@ -77,11 +83,11 @@ final class MockTransactionEditorViewController: UIViewController {
         tokenPickerButton.layer.cornerRadius = 12
         tokenPickerButton.addTarget(self, action: #selector(didTapTokenPicker), for: .touchUpInside)
 
-        configureTextField(amountField, placeholder: "Сумма (например, 25.5)")
-        amountField.keyboardType = .decimalPad
+        let toolbar = makeKeyboardToolbar()
 
-        configureTextField(counterpartyField, placeholder: "Адрес контрагента (UQ...)")
-        configureTextField(commentField, placeholder: "Комментарий (memo)")
+        configureTextField(amountField, placeholder: "Сумма (например, 25.5)", keyboardType: .decimalPad, returnKeyType: .next, toolbar: toolbar)
+        configureTextField(counterpartyField, placeholder: "Адрес контрагента (UQ...)", returnKeyType: .next, toolbar: toolbar)
+        configureTextField(commentField, placeholder: "Комментарий (memo)", returnKeyType: .done, toolbar: toolbar)
 
         datePicker.datePickerMode = .dateAndTime
         if #available(iOS 14.0, *) {
@@ -147,7 +153,13 @@ final class MockTransactionEditorViewController: UIViewController {
         }
     }
 
-    private func configureTextField(_ field: UITextField, placeholder: String) {
+    private func configureTextField(
+        _ field: UITextField,
+        placeholder: String,
+        keyboardType: UIKeyboardType = .default,
+        returnKeyType: UIReturnKeyType = .default,
+        toolbar: UIToolbar? = nil
+    ) {
         field.placeholder = placeholder
         field.backgroundColor = .Background.content
         field.textColor = .Text.primary
@@ -155,9 +167,57 @@ final class MockTransactionEditorViewController: UIViewController {
         field.layer.cornerRadius = 12
         field.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 14, height: 48))
         field.leftViewMode = .always
+        field.keyboardType = keyboardType
+        field.returnKeyType = returnKeyType
+        field.inputAccessoryView = toolbar
+        field.delegate = self
         field.snp.makeConstraints { make in
             make.height.equalTo(48)
         }
+    }
+
+    private func makeKeyboardToolbar() -> UIToolbar {
+        let toolbar = UIToolbar(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 44))
+        let flex = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
+        let done = UIBarButtonItem(title: "Готово", style: .done, target: self, action: #selector(didTapDoneKeyboard))
+        toolbar.items = [flex, done]
+        return toolbar
+    }
+
+    @objc private func didTapBackground() {
+        view.endEditing(true)
+    }
+
+    @objc private func didTapDoneKeyboard() {
+        view.endEditing(true)
+    }
+
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    @objc private func keyboardWillShow(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        let bottomInset = keyboardFrame.height - view.safeAreaInsets.bottom
+        scrollView.contentInset.bottom = max(0, bottomInset)
+        scrollView.verticalScrollIndicatorInsets.bottom = max(0, bottomInset)
+    }
+
+    @objc private func keyboardWillHide(_ notification: Notification) {
+        scrollView.contentInset.bottom = 0
+        scrollView.verticalScrollIndicatorInsets.bottom = 0
     }
 
     private func createLabeledField(label: String, field: UIView) -> UIView {
@@ -295,5 +355,18 @@ final class MockTransactionEditorViewController: UIViewController {
         animation.duration = 0.4
         animation.values = [-10.0, 10.0, -8.0, 8.0, -5.0, 5.0, 0.0]
         view.layer.add(animation, forKey: "shake")
+    }
+}
+
+extension MockTransactionEditorViewController: UITextFieldDelegate {
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField == amountField {
+            counterpartyField.becomeFirstResponder()
+        } else if textField == counterpartyField {
+            commentField.becomeFirstResponder()
+        } else {
+            view.endEditing(true)
+        }
+        return true
     }
 }

@@ -19,8 +19,18 @@ extension TKListItemIconView.Configuration {
             )
         }
 
+        let imageSource: TKImage = {
+            if jettonInfo.isTonUSDT || jettonInfo.symbol?.uppercased() == "USDT" {
+                return .image(.TKUIKit.Icons.Size44.currencyUsdt)
+            }
+            if jettonInfo.symbol?.uppercased() == "GRAM" {
+                return .image(.TKUIKit.Icons.Size44.currencyGram)
+            }
+            return .urlImage(jettonInfo.imageURL)
+        }()
+
         return TKListItemIconView.Configuration(
-            content: .image(TKImageView.Model(image: .urlImage(jettonInfo.imageURL), size: .size(CGSize(width: 44, height: 44)), corners: .circle)),
+            content: .image(TKImageView.Model(image: imageSource, size: .size(CGSize(width: 44, height: 44)), corners: .circle)),
             alignment: .center,
             cornerRadius: 22,
             backgroundColor: .Background.contentTint,

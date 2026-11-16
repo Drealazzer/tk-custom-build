@@ -75,6 +75,7 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
     public var fractionDigits: Int
     public var amount: Decimal
     public var customPriceUSD: Decimal?
+    public var imageURL: String?
 
     public init(
         name: String,
@@ -82,7 +83,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
         address: String? = nil,
         fractionDigits: Int = 9,
         amount: Decimal = 0,
-        customPriceUSD: Decimal? = nil
+        customPriceUSD: Decimal? = nil,
+        imageURL: String? = nil
     ) {
         self.name = name
         self.symbol = symbol
@@ -90,6 +92,7 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
         self.fractionDigits = fractionDigits
         self.amount = amount
         self.customPriceUSD = customPriceUSD
+        self.imageURL = imageURL
     }
 
     public static let popularPresets: [MockTokenBalance] = [
@@ -99,7 +102,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             address: nil,
             fractionDigits: 9,
             amount: 150,
-            customPriceUSD: 5.5
+            customPriceUSD: 5.5,
+            imageURL: nil
         ),
         MockTokenBalance(
             name: "Tether USD",
@@ -107,7 +111,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             address: JettonMasterAddress.tonUSDT.toRaw(),
             fractionDigits: 6,
             amount: 1500,
-            customPriceUSD: 1.0
+            customPriceUSD: 1.0,
+            imageURL: "https://cache.tonapi.io/img/token/usdt.png"
         ),
         MockTokenBalance(
             name: "Gram",
@@ -115,7 +120,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             address: "0:47093a17e57e5b85bd31ba4da0a6f4a86704407460959828456a0664670be8e5",
             fractionDigits: 9,
             amount: 50000,
-            customPriceUSD: 0.015
+            customPriceUSD: 0.015,
+            imageURL: "https://cache.tonapi.io/img/token/gram.png"
         ),
         MockTokenBalance(
             name: "Notcoin",
@@ -123,7 +129,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             address: JettonMasterAddress.NOT.toRaw(),
             fractionDigits: 9,
             amount: 250000,
-            customPriceUSD: 0.007
+            customPriceUSD: 0.007,
+            imageURL: "https://cache.tonapi.io/img/token/notcoin.png"
         ),
         MockTokenBalance(
             name: "Dogs",
@@ -131,7 +138,8 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             address: "0:af84e1b54cfdb39cf4d306b9b1e9592dd7fe0a623910c22fa45e3ea1e0b3d884",
             fractionDigits: 9,
             amount: 100000,
-            customPriceUSD: 0.0006
+            customPriceUSD: 0.0006,
+            imageURL: "https://cache.tonapi.io/img/token/dogs.png"
         ),
     ]
 }
