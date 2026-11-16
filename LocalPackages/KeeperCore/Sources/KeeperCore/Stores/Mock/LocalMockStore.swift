@@ -288,8 +288,7 @@ public final class LocalMockStore: @unchecked Sendable {
             let eventId = "mock_\(mockEvent.id.uuidString)"
             let status: AccountEventStatus = {
                 switch mockEvent.status {
-                case .success: return .ok
-                case .pending: return .inProgress
+                case .success, .pending: return .ok
                 case .failed: return .failed
                 }
             }()
