@@ -52,6 +52,8 @@ jobs:
 
       - name: Provision Firebase Config Stubs
         run: |
+          chmod -R +x scripts/ || true
+          chmod -R +x ci_scripts/ || true
           sh scripts/firebase/provision_firebase.sh
 
       - name: Build Keeper App (Unsigned)

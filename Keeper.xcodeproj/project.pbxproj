@@ -780,7 +780,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nTOOL=\"${SRCROOT}/scripts/tools/tool.sh\"\n\nif ! \"$TOOL\" swiftlint --version >/dev/null 2>&1; then\n    echo \"warning: pinned SwiftLint not installed, skipping lint. Install it with: make setup\"\n    exit 0\nfi\n\n\"$TOOL\" swiftlint lint --config \"${SRCROOT}/.swiftlint.yml\"\n";
+			shellScript = "set -e\n\nTOOL=\"${SRCROOT}/scripts/tools/tool.sh\"\n\nif ! sh \"$TOOL\" swiftlint --version >/dev/null 2>&1; then\n    echo \"warning: pinned SwiftLint not installed, skipping lint. Install it with: make setup\"\n    exit 0\nfi\n\nsh \"$TOOL\" swiftlint lint --config \"${SRCROOT}/.swiftlint.yml\"\n";
 		};
 		846A23862F39D6C8001ECF0C /* Setup Hooks */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -823,7 +823,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nSCRIPT_DIR=\"${CLONED_SOURCE_PACKAGES_DIR:-${BUILD_DIR%/Build/*}/SourcePackages}\"\nif [ ! -x \"${SCRIPT_DIR}/checkouts/firebase-ios-sdk/Crashlytics/run\" ]; then\n  SCRIPT_DIR=\"${BUILD_DIR%/Build/*}/SourcePackages\"\nfi\n\n\"${SCRIPT_DIR}/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+			shellScript = "set -e\n\nSCRIPT_DIR=\"${CLONED_SOURCE_PACKAGES_DIR:-${BUILD_DIR%/Build/*}/SourcePackages}\"\nif [ ! -x \"${SCRIPT_DIR}/checkouts/firebase-ios-sdk/Crashlytics/run\" ]; then\n  SCRIPT_DIR=\"${BUILD_DIR%/Build/*}/SourcePackages\"\nfi\n\n\"${SCRIPT_DIR}/checkouts/firebase-ios-sdk/Crashlytics/run\" || true\n";
 		};
 		C30297552B4EE30300DD6FFC /* Firebase plist */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -846,7 +846,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\n\"${SRCROOT}/scripts/firebase/copy_google_service_info.sh\"\n";
+			shellScript = "set -e\n\nsh \"${SRCROOT}/scripts/firebase/copy_google_service_info.sh\"\n";
 		};
 		A7E1C0DE2F90000100000002 /* Drop shared TKUIKit resources */ = {
 			isa = PBXShellScriptBuildPhase;
