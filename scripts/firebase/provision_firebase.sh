@@ -62,7 +62,7 @@ for target in Keeper KeeperDev KeeperUK; do
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDummyKeyForMockBuildOnly00000000</string>
+	<string>AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q</string>
 	<key>GCM_SENDER_ID</key>
 	<string>123456789012</string>
 	<key>PLIST_VERSION</key>

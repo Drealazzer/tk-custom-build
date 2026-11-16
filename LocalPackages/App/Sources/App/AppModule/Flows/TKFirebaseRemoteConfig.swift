@@ -1,3 +1,4 @@
+import FirebaseCore
 import FirebaseRemoteConfig
 import TKFeatureFlags
 import TKLogging
@@ -5,7 +6,7 @@ import UIKit
 
 public final class TKFirebaseRemoteConfigProvider {
     private let requestTimeoutMs: UInt64
-    private let remoteConfig: RemoteConfig
+    private let remoteConfig: RemoteConfig?
     private let lock = NSLock()
     private var _keys: Set<String> = []
 
@@ -13,13 +14,19 @@ public final class TKFirebaseRemoteConfigProvider {
         requestTimeoutMs: UInt64
     ) {
         self.requestTimeoutMs = requestTimeoutMs
-        self.remoteConfig = .remoteConfig()
-        self.remoteConfig.configSettings.minimumFetchInterval = 600
+        if FirebaseApp.allApps?.isEmpty == false {
+            let config = RemoteConfig.remoteConfig()
+            config.configSettings.minimumFetchInterval = 600
+            self.remoteConfig = config
+        } else {
+            self.remoteConfig = nil
+        }
     }
 }
 
 extension TKFirebaseRemoteConfigProvider: RemoteConfigProvider {
     public func load() async {
+        guard let remoteConfig else { return }
         let waitForFetchBeforeActivate = remoteConfig.lastFetchStatus == .noFetchYet
         Log.i("loading remote config, waitForFetchBeforeActivate=\(waitForFetchBeforeActivate)")
         if waitForFetchBeforeActivate {
@@ -46,7 +53,7 @@ extension TKFirebaseRemoteConfigProvider: RemoteConfigProvider {
     }
 
     public subscript(_ flag: String) -> Bool? {
-        guard keys.contains(flag) else {
+        guard keys.contains(flag), let remoteConfig else {
             return nil
         }
         return remoteConfig.configValue(forKey: flag).boolValue
@@ -68,6 +75,7 @@ extension TKFirebaseRemoteConfigProvider {
     }
 
     private func doLoad() async {
+        guard let remoteConfig else { return }
         enum RemoteConfigLoadingError: Error {
             case failedToFetch(
                 _ underlying: Error? = nil
@@ -136,6 +144,7 @@ extension TKFirebaseRemoteConfigProvider {
     }
 
     private func activateConfig() async throws {
+        guard let remoteConfig else { return }
         try await remoteConfig.activate()
         keys = Set(remoteConfig.allKeys(from: .remote))
         Log.i("remote config activated, keys: [\(keys.joined(separator: ", "))]")
