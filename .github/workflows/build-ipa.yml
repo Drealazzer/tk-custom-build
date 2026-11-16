@@ -14,7 +14,7 @@ concurrency:
 jobs:
   build:
     name: Build Keeper IPA
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +23,13 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode_15.4.app || true
+          AVAILABLE_XCODE=$(find /Applications -maxdepth 1 \( -name "Xcode_16*.app" -o -name "Xcode_15*.app" \) 2>/dev/null | sort -V | tail -n 1)
+          if [ -n "$AVAILABLE_XCODE" ]; then
+            echo "Selected Xcode: $AVAILABLE_XCODE"
+            sudo xcode-select -s "$AVAILABLE_XCODE"
+          fi
           xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path || true
 
       - name: Provision Firebase Config Stubs
         run: |
@@ -33,6 +38,7 @@ jobs:
       - name: Build Keeper App (Unsigned)
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/Configurations/PackageBuildSettings.xcconfig
+          CLONED_SOURCE_PACKAGES_DIR: ${{ github.workspace }}/build/DerivedData/SourcePackages
         run: |
           set -o pipefail
           xcodebuild \
@@ -52,6 +58,7 @@ jobs:
           APP_PATH=$(find build/DerivedData/Build/Products -name "Keeper.app" -type d | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "Error: Keeper.app not found in build products" >&2
+            find build/DerivedData/Build/Products -maxdepth 3 || true
             exit 1
           fi
           echo "Found Keeper.app at: $APP_PATH"
