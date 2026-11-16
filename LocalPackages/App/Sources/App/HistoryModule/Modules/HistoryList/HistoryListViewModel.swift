@@ -386,10 +386,12 @@ final class HistoryListViewModelImplementation: HistoryListViewModel, HistoryLis
             let mockEvents = LocalMockStore.shared.makeHistoryEvents(wallet: wallet)
             allEvents = mockEvents + events
         }
-        var seenEventIDs = existingEventIDs
-        let deduplicated = allEvents.compactMap { event in
-            guard seenEventIDs.insert(event.eventId).inserted else { return nil }
-            return event
+        var seenEventIDs: Set<AccountEvent.EventID> = existingEventIDs
+        var deduplicated = [HistoryEvent]()
+        for event in allEvents {
+            if seenEventIDs.insert(event.eventId).inserted {
+                deduplicated.append(event)
+            }
         }
         return deduplicated.sorted(by: { $0.timestamp > $1.timestamp })
     }

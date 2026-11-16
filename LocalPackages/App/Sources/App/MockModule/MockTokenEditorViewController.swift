@@ -71,8 +71,6 @@ final class MockTokenEditorViewController: UIViewController {
         popularPickerButton.setTitleColor(.Text.primary, for: .normal)
         popularPickerButton.backgroundColor = .Background.content
         popularPickerButton.layer.cornerRadius = 12
-        popularPickerButton.contentHorizontalAlignment = .left
-        popularPickerButton.contentEdgeInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         popularPickerButton.addTarget(self, action: #selector(didTapPopularPicker), for: .touchUpInside)
 
         configureTextField(symbolField, placeholder: "Символ (например, TON, USDT)")

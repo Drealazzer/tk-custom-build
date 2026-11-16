@@ -75,8 +75,6 @@ final class MockTransactionEditorViewController: UIViewController {
         tokenPickerButton.setTitleColor(.Text.primary, for: .normal)
         tokenPickerButton.backgroundColor = .Background.content
         tokenPickerButton.layer.cornerRadius = 12
-        tokenPickerButton.contentHorizontalAlignment = .left
-        tokenPickerButton.contentEdgeInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         tokenPickerButton.addTarget(self, action: #selector(didTapTokenPicker), for: .touchUpInside)
 
         configureTextField(amountField, placeholder: "Сумма (например, 25.5)")
@@ -107,7 +105,7 @@ final class MockTransactionEditorViewController: UIViewController {
 
         let dateContainer = UIStackView()
         dateContainer.axis = .horizontal
-        dateContainer.distribution = .spaceBetween
+        dateContainer.distribution = .equalSpacing
         dateContainer.alignment = .center
         let dateLabel = UILabel()
         dateLabel.text = "Дата и время"
