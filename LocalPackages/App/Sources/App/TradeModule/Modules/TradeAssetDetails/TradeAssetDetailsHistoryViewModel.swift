@@ -95,6 +95,17 @@ final class TradeAssetDetailsHistoryViewModel: ObservableObject, TradeAssetDetai
                 observer.handleHistoryUpdate(wallet: wallet)
             }
         }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didGetMockStoreNotification),
+            name: LocalMockStore.didChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func didGetMockStoreNotification() {
+        scheduleUpdate()
     }
 
     deinit {
@@ -304,9 +315,51 @@ private extension TradeAssetDetailsHistoryViewModel {
         events: [HistoryEvent],
         context: TradeAssetHistoryContext
     ) -> TradeAssetDetailsHistoryPreview {
+        var allEvents = events
+        if LocalMockStore.shared.isEnabled {
+            let mockEvents: [HistoryEvent] = {
+                switch context {
+                case let .ton(wallet):
+                    return LocalMockStore.shared.makeHistoryEvents(wallet: wallet).filter { event in
+                        if case let .tonAccountEvent(acc) = event {
+                            return acc.actions.contains { action in
+                                if case .tonTransfer = action.type { return true }
+                                if case .jettonSwap = action.type { return true }
+                                return false
+                            }
+                        }
+                        return false
+                    }
+                case let .jetton(wallet, _):
+                    return LocalMockStore.shared.makeHistoryEvents(wallet: wallet).filter { event in
+                        if case let .tonAccountEvent(acc) = event {
+                            return acc.actions.contains { action in
+                                if case .jettonTransfer = action.type { return true }
+                                return false
+                            }
+                        }
+                        return false
+                    }
+                case let .tronUSDT(wallet):
+                    return LocalMockStore.shared.makeHistoryEvents(wallet: wallet).filter { event in
+                        if case let .tonAccountEvent(acc) = event {
+                            return acc.actions.contains { action in
+                                if case .jettonTransfer = action.type { return true }
+                                return false
+                            }
+                        }
+                        return false
+                    }
+                default:
+                    return []
+                }
+            }()
+            allEvents = mockEvents + events
+        }
+
         var items = [TradeAssetDetailsHistoryPreview.Item]()
 
-        for event in events {
+        for event in allEvents {
             switch (event, context) {
             case let (.tonAccountEvent(accountEvent), .ton(wallet)),
                  let (.tonAccountEvent(accountEvent), .jetton(wallet, _)):

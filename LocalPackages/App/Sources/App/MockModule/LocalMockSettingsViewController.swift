@@ -82,6 +82,26 @@ final class LocalMockSettingsViewController: UIViewController {
         present(alert, animated: true)
     }
 
+    private func showWhaleConfirmation() {
+        let alert = UIAlertController(
+            title: "Применить пресет «Крипто-Кит»? 🐋",
+            message: "Баланс будет установлен на ~$1,207,500 (850,000 USD₮ и 65,000 TON) с реалистичной историей переводов от Bybit, Fragment, OKX и STON.fi.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Применить", style: .default) { [weak self] _ in
+            LocalMockStore.shared.applyWhalePreset()
+            self?.tableView.reloadData()
+        })
+        present(alert, animated: true)
+    }
+
+    private func openPushScheduler() {
+        let vc = MockPushSchedulerViewController()
+        let nav = UINavigationController(rootViewController: vc)
+        present(nav, animated: true)
+    }
+
     private func showResetConfirmation() {
         let alert = UIAlertController(
             title: "Сбросить все данные?",
@@ -107,9 +127,9 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
         case 0:
-            return 2 // Switch + Reset
+            return 4 // Switch + Whale + Push + Reset
         case 1:
-            return LocalMockStore.shared.mockTokens.count + 1 // Tokens + Add Token button
+            return LocalMockStore.shared.mockTokens.count // Only active TON & USDT
         case 2:
             return LocalMockStore.shared.mockEvents.count + 1 // Add Event button + Events
         default:
@@ -119,8 +139,8 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return "Симуляция"
-        case 1: return "Токены и баланс"
+        case 0: return "Управление симуляцией"
+        case 1: return "Активные токены (TON и USDT)"
         case 2: return "История транзакций"
         default: return nil
         }
@@ -142,6 +162,26 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
                 toggle.addTarget(self, action: #selector(didToggleSwitch(_:)), for: .valueChanged)
                 cell.accessoryView = toggle
                 return cell
+            } else if indexPath.row == 1 {
+                let cell = UITableViewCell(style: .subtitle, reuseIdentifier: "WhaleCell")
+                cell.textLabel?.text = "🐋 Применить пресет «Крипто-Кит» ($1.2M)"
+                cell.textLabel?.textColor = .Accent.blue
+                cell.textLabel?.font = TKTextStyle.label1.font
+                cell.detailTextLabel?.text = "850,000 USD₮ + 65,000 TON и богатая история"
+                cell.detailTextLabel?.textColor = .Text.secondary
+                cell.backgroundColor = .Background.content
+                cell.accessoryType = .disclosureIndicator
+                return cell
+            } else if indexPath.row == 2 {
+                let cell = UITableViewCell(style: .subtitle, reuseIdentifier: "PushCell")
+                cell.textLabel?.text = "🔔 Запланировать входящий Push-перевод"
+                cell.textLabel?.textColor = .Accent.green
+                cell.textLabel?.font = TKTextStyle.label1.font
+                cell.detailTextLabel?.text = "Реальный пуш на заблокированный экран по таймеру"
+                cell.detailTextLabel?.textColor = .Text.secondary
+                cell.backgroundColor = .Background.content
+                cell.accessoryType = .disclosureIndicator
+                return cell
             } else {
                 let cell = UITableViewCell(style: .default, reuseIdentifier: "ResetCell")
                 cell.textLabel?.text = "Сбросить данные к дефолтным"
@@ -153,24 +193,16 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
 
         case 1:
             let tokens = LocalMockStore.shared.mockTokens
-            if indexPath.row < tokens.count {
-                let token = tokens[indexPath.row]
-                let cell = UITableViewCell(style: .value1, reuseIdentifier: "TokenCell")
-                cell.textLabel?.text = "\(token.symbol) (\(token.name))"
-                cell.textLabel?.textColor = .Text.primary
-                cell.detailTextLabel?.text = "\(token.amount) \(token.symbol)"
-                cell.detailTextLabel?.textColor = .Accent.blue
-                cell.detailTextLabel?.font = TKTextStyle.label1.font
-                cell.backgroundColor = .Background.content
-                cell.accessoryType = .disclosureIndicator
-                return cell
-            } else {
-                let cell = UITableViewCell(style: .default, reuseIdentifier: "AddTokenCell")
-                cell.textLabel?.text = "+ Добавить токен"
-                cell.textLabel?.textColor = .Accent.blue
-                cell.backgroundColor = .Background.content
-                return cell
-            }
+            let token = tokens[indexPath.row]
+            let cell = UITableViewCell(style: .value1, reuseIdentifier: "TokenCell")
+            cell.textLabel?.text = "\(token.symbol) (\(token.name))"
+            cell.textLabel?.textColor = .Text.primary
+            cell.detailTextLabel?.text = "\(token.amount) \(token.symbol)"
+            cell.detailTextLabel?.textColor = .Accent.blue
+            cell.detailTextLabel?.font = TKTextStyle.label1.font
+            cell.backgroundColor = .Background.content
+            cell.accessoryType = .disclosureIndicator
+            return cell
 
         case 2:
             if indexPath.row == 0 {
@@ -225,27 +257,23 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
         switch indexPath.section {
         case 0:
             if indexPath.row == 1 {
+                showWhaleConfirmation()
+            } else if indexPath.row == 2 {
+                openPushScheduler()
+            } else if indexPath.row == 3 {
                 showResetConfirmation()
             }
 
         case 1:
             let tokens = LocalMockStore.shared.mockTokens
-            if indexPath.row < tokens.count {
-                let token = tokens[indexPath.row]
-                let editor = MockTokenEditorViewController(token: token)
-                editor.onSave = { [weak self] in
-                    self?.tableView.reloadData()
-                }
-                let nav = UINavigationController(rootViewController: editor)
-                present(nav, animated: true)
-            } else {
-                let editor = MockTokenEditorViewController()
-                editor.onSave = { [weak self] in
-                    self?.tableView.reloadData()
-                }
-                let nav = UINavigationController(rootViewController: editor)
-                present(nav, animated: true)
+            guard indexPath.row < tokens.count else { break }
+            let token = tokens[indexPath.row]
+            let editor = MockTokenEditorViewController(token: token)
+            editor.onSave = { [weak self] in
+                self?.tableView.reloadData()
             }
+            let nav = UINavigationController(rootViewController: editor)
+            present(nav, animated: true)
 
         case 2:
             if indexPath.row == 0 {
@@ -272,9 +300,6 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
     }
 
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        if indexPath.section == 1 && indexPath.row < LocalMockStore.shared.mockTokens.count {
-            return true
-        }
         if indexPath.section == 2 && indexPath.row > 0 {
             return true
         }
@@ -282,14 +307,9 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
     }
 
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            if indexPath.section == 1 {
-                let token = LocalMockStore.shared.mockTokens[indexPath.row]
-                LocalMockStore.shared.removeToken(symbol: token.symbol)
-            } else if indexPath.section == 2 {
-                let event = LocalMockStore.shared.mockEvents[indexPath.row - 1]
-                LocalMockStore.shared.removeEvent(id: event.id)
-            }
+        if editingStyle == .delete, indexPath.section == 2, indexPath.row > 0 {
+            let event = LocalMockStore.shared.mockEvents[indexPath.row - 1]
+            LocalMockStore.shared.removeEvent(id: event.id)
             tableView.reloadData()
         }
     }

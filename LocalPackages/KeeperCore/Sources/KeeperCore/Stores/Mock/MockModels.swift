@@ -114,32 +114,5 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
             customPriceUSD: 1.0,
             imageURL: "https://cache.tonapi.io/img/token/usdt.png"
         ),
-        MockTokenBalance(
-            name: "Gram",
-            symbol: "GRAM",
-            address: "0:47093a17e57e5b85bd31ba4da0a6f4a86704407460959828456a0664670be8e5",
-            fractionDigits: 9,
-            amount: 50000,
-            customPriceUSD: 0.015,
-            imageURL: "https://cache.tonapi.io/img/token/gram.png"
-        ),
-        MockTokenBalance(
-            name: "Notcoin",
-            symbol: "NOT",
-            address: JettonMasterAddress.NOT.toRaw(),
-            fractionDigits: 9,
-            amount: 250000,
-            customPriceUSD: 0.007,
-            imageURL: "https://cache.tonapi.io/img/token/notcoin.png"
-        ),
-        MockTokenBalance(
-            name: "Dogs",
-            symbol: "DOGS",
-            address: "0:af84e1b54cfdb39cf4d306b9b1e9592dd7fe0a623910c22fa45e3ea1e0b3d884",
-            fractionDigits: 9,
-            amount: 100000,
-            customPriceUSD: 0.0006,
-            imageURL: "https://cache.tonapi.io/img/token/dogs.png"
-        ),
     ]
 }

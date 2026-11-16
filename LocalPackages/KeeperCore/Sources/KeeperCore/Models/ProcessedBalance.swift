@@ -25,7 +25,11 @@ public struct ProcessedBalance: Equatable, Codable {
             return ethenaItem.stakedUsde
         }
 
-        if let jettonItem = jettonItems.first(where: { $0.jetton.jettonInfo == jettonInfo }) {
+        if let jettonItem = jettonItems.first(where: {
+            $0.jetton.jettonInfo == jettonInfo ||
+            $0.jetton.jettonInfo.address == jettonInfo.address ||
+            ($0.jetton.jettonInfo.isTonUSDT && jettonInfo.isTonUSDT)
+        }) {
             return jettonItem
         }
 

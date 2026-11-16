@@ -77,6 +77,16 @@ public final class ConvertedBalanceStore: Store<ConvertedBalanceStore.Event, Con
         tonRatesStore.addObserver(self) { observer, _ in
             observer.updateState(wallets: observer.walletsStore.wallets)
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didGetMockStoreNotification),
+            name: LocalMockStore.didChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func didGetMockStoreNotification() {
+        updateState(wallets: walletsStore.wallets)
     }
 
     private func updateState(wallets: [Wallet]) {
@@ -103,10 +113,15 @@ public final class ConvertedBalanceStore: Store<ConvertedBalanceStore.Event, Con
 
         let balance = balanceState.walletBalance
 
-        let tonItem = calculateTonBalance(
+        var tonItem = calculateTonBalance(
             balance.balance.tonBalance,
             tonRate: tonRate
         )
+
+        if LocalMockStore.shared.isEnabled, let mockTon = LocalMockStore.shared.tonBalance {
+            let nanoTons = Int64(NSDecimalNumber(decimal: mockTon * 1_000_000_000).int64Value)
+            tonItem = calculateTonBalance(TonBalance(amount: nanoTons), tonRate: tonRate)
+        }
 
         var jettonItems = balance.balance.jettonsBalance.map {
             calculateJettonBalance($0, currency: currency)
@@ -121,6 +136,28 @@ public final class ConvertedBalanceStore: Store<ConvertedBalanceStore.Event, Con
            )
         {
             jettonItems.append(item)
+        }
+
+        if LocalMockStore.shared.isEnabled {
+            let rates = tonRatesStore.state.jettonRates
+            let mockItems = LocalMockStore.shared.makeProcessedJettonItems(jettonRates: rates, currency: currency)
+            for mock in mockItems {
+                let convertedJetton = ConvertedJettonBalance(
+                    jettonBalance: JettonBalance(
+                        item: mock.jetton,
+                        quantity: mock.amount,
+                        rates: [currency: Rates.Rate(currency: currency, rate: mock.price, diff24h: mock.diff)]
+                    ),
+                    converted: mock.converted,
+                    price: mock.price,
+                    diff: mock.diff
+                )
+                if let idx = jettonItems.firstIndex(where: { $0.jettonBalance.item.jettonInfo.address == mock.jetton.jettonInfo.address }) {
+                    jettonItems[idx] = convertedJetton
+                } else {
+                    jettonItems.append(convertedJetton)
+                }
+            }
         }
 
         let stackingItems = balance.stacking.map {

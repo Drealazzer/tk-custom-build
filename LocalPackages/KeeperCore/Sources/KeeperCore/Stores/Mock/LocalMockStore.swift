@@ -1,6 +1,7 @@
 import BigInt
 import Foundation
 import TonSwift
+import UserNotifications
 
 public final class LocalMockStore: @unchecked Sendable {
     public static let shared = LocalMockStore()
@@ -19,7 +20,14 @@ public final class LocalMockStore: @unchecked Sendable {
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
-           let state = try? JSONDecoder().decode(State.self, from: data) {
+           var state = try? JSONDecoder().decode(State.self, from: data) {
+            state.tokens = state.tokens.filter { $0.symbol.uppercased() == "TON" || $0.symbol.uppercased() == "USDT" }
+            if !state.tokens.contains(where: { $0.symbol.uppercased() == "USDT" }) {
+                state.tokens.append(MockTokenBalance.popularPresets[1])
+            }
+            if !state.tokens.contains(where: { $0.symbol.uppercased() == "TON" }) {
+                state.tokens.insert(MockTokenBalance.popularPresets[0], at: 0)
+            }
             self.storedState = state
         } else {
             self.storedState = Self.makeDefaultState()
@@ -168,6 +176,190 @@ public final class LocalMockStore: @unchecked Sendable {
         storedState.events.removeAll { $0.id == id }
         lock.unlock()
         persistAndNotify()
+    }
+
+    public func applyWhalePreset() {
+        lock.lock()
+        let now = Date()
+        let whaleTon = Decimal(65_000)
+        let whaleUsdt = Decimal(850_000)
+
+        storedState.isEnabled = true
+        storedState.tonBalance = whaleTon
+        storedState.tokens = [
+            MockTokenBalance(
+                name: "Toncoin",
+                symbol: "TON",
+                address: nil,
+                fractionDigits: 9,
+                amount: whaleTon,
+                customPriceUSD: 5.5,
+                imageURL: nil
+            ),
+            MockTokenBalance(
+                name: "Tether USD",
+                symbol: "USDT",
+                address: JettonMasterAddress.tonUSDT.toRaw(),
+                fractionDigits: 6,
+                amount: whaleUsdt,
+                customPriceUSD: 1.0,
+                imageURL: "https://cache.tonapi.io/img/token/usdt.png"
+            ),
+        ]
+
+        storedState.events = [
+            MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: "USDT",
+                tokenAddress: JettonMasterAddress.tonUSDT.toRaw(),
+                fractionDigits: 6,
+                amount: Decimal(350_000),
+                counterpartyAddress: "UQBybitHotWallet6WithdrawalsTONNetwork",
+                comment: "Withdrawal #89218",
+                timestamp: now.addingTimeInterval(-1800),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: "TON",
+                tokenAddress: nil,
+                fractionDigits: 9,
+                amount: Decimal(25_000),
+                counterpartyAddress: "UQFragmentAuctionPayoutSystemTonkeeper",
+                comment: "Auction payout: @investor",
+                timestamp: now.addingTimeInterval(-14400),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: "USDT",
+                tokenAddress: JettonMasterAddress.tonUSDT.toRaw(),
+                fractionDigits: 6,
+                amount: Decimal(500_000),
+                counterpartyAddress: "UQOKXOfficialExchangeColdWalletSettlement",
+                comment: "Internal transfer",
+                timestamp: now.addingTimeInterval(-43200),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: "TON",
+                tokenAddress: nil,
+                fractionDigits: 9,
+                amount: Decimal(1_250),
+                counterpartyAddress: "UQTonstakersPoolStakingRewardsValidator",
+                comment: "Staking APY Reward",
+                timestamp: now.addingTimeInterval(-86400),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .swap,
+                tokenSymbol: "TON",
+                tokenAddress: nil,
+                fractionDigits: 9,
+                amount: Decimal(38_750),
+                counterpartyAddress: "STON.fi DEX Router",
+                comment: nil,
+                timestamp: now.addingTimeInterval(-172800),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .outgoing,
+                tokenSymbol: "USDT",
+                tokenAddress: JettonMasterAddress.tonUSDT.toRaw(),
+                fractionDigits: 6,
+                amount: Decimal(10_000),
+                counterpartyAddress: "UQDFf1234567890abcdefAlicePartnerPayment",
+                comment: "Services renewal",
+                timestamp: now.addingTimeInterval(-259200),
+                status: .success
+            ),
+            MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: "USDT",
+                tokenAddress: JettonMasterAddress.tonUSDT.toRaw(),
+                fractionDigits: 6,
+                amount: Decimal(150_000),
+                counterpartyAddress: "UQBinanceInstitutionalSettlementDeposit",
+                comment: "OTC Settlement",
+                timestamp: now.addingTimeInterval(-345600),
+                status: .success
+            ),
+        ]
+        lock.unlock()
+        persistAndNotify()
+    }
+
+    public func schedulePushTransfer(
+        tokenSymbol: String,
+        amount: Decimal,
+        delaySeconds: TimeInterval,
+        comment: String? = nil,
+        senderName: String? = nil
+    ) {
+        let isTon = tokenSymbol.uppercased() == "TON"
+        let displaySymbol = isTon ? "TON" : "USD₮"
+        let tokenAddress = isTon ? nil : JettonMasterAddress.tonUSDT.toRaw()
+        let fractionDigits = isTon ? 9 : 6
+        let commentText = (comment?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? "\n«\(comment!)»" : ""
+        let title = senderName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? senderName! : "Tonkeeper"
+        let body = "Получено +\(amount) \(displaySymbol)\(commentText)"
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, delaySeconds), repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { _ in }
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + delaySeconds) { [weak self] in
+            guard let self else { return }
+            self.lock.lock()
+            if isTon {
+                let current = self.storedState.tonBalance ?? 0
+                self.storedState.tonBalance = current + amount
+                if let idx = self.storedState.tokens.firstIndex(where: { $0.symbol.uppercased() == "TON" }) {
+                    self.storedState.tokens[idx].amount = current + amount
+                }
+            } else {
+                if let idx = self.storedState.tokens.firstIndex(where: { $0.symbol.uppercased() == "USDT" }) {
+                    self.storedState.tokens[idx].amount += amount
+                } else {
+                    self.storedState.tokens.append(
+                        MockTokenBalance(
+                            name: "Tether USD",
+                            symbol: "USDT",
+                            address: JettonMasterAddress.tonUSDT.toRaw(),
+                            fractionDigits: 6,
+                            amount: amount,
+                            customPriceUSD: 1.0,
+                            imageURL: "https://cache.tonapi.io/img/token/usdt.png"
+                        )
+                    )
+                }
+            }
+
+            let newEvent = MockHistoryEvent(
+                type: .incoming,
+                tokenSymbol: isTon ? "TON" : "USDT",
+                tokenAddress: tokenAddress,
+                fractionDigits: fractionDigits,
+                amount: amount,
+                counterpartyAddress: "UQDFf1234567890abcdefAliceIncomingTransfer",
+                comment: comment,
+                timestamp: Date(),
+                status: .success
+            )
+            self.storedState.events.insert(newEvent, at: 0)
+            self.lock.unlock()
+
+            DispatchQueue.main.async {
+                self.persistAndNotify()
+            }
+        }
     }
 
     public func resetToDefaults() {

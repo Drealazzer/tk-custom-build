@@ -64,6 +64,17 @@ final class TradeAssetDetailsStoreBalanceViewModel: ObservableObject, TradeAsset
         freshnessModel.onNeedsRefresh = { [weak self] in
             self?.reload()
         }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didGetMockStoreNotification),
+            name: LocalMockStore.didChangeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func didGetMockStoreNotification() {
+        state = storeSnapshot()
     }
 
     deinit {
@@ -144,10 +155,66 @@ private extension TradeAssetDetailsStoreBalanceViewModel {
 
 private extension TradeAssetDetailsStoreBalanceViewModel {
     func storeSnapshot() -> TradeAssetDetailsBalanceSnapshot? {
-        guard
-            let wallet,
-            let convertedBalance = convertedBalanceStore.getState()[wallet]?.balance
-        else {
+        guard let wallet else {
+            return nil
+        }
+
+        if LocalMockStore.shared.isEnabled {
+            switch typedAssetId {
+            case .ton:
+                if let mockTon = LocalMockStore.shared.tonBalance {
+                    let nanoTons = LocalMockStore.decimalToBigUInt(mockTon, fractionDigits: TonInfo.fractionDigits)
+                    let rate = convertedBalanceStore.getState()[wallet]?.balance.tonBalance.price ?? Decimal(5.5)
+                    let price = rate > 0 ? rate : Decimal(5.5)
+                    return TradeAssetDetailsBalanceSnapshot(
+                        symbol: TonInfo.symbol,
+                        imageURL: nil,
+                        amount: nanoTons,
+                        fractionDigits: TonInfo.fractionDigits,
+                        convertedAmount: mockTon * price,
+                        tagText: nil,
+                        freshness: freshnessModel.freshness
+                    )
+                }
+            case let .jetton(address):
+                let mockTokens = LocalMockStore.shared.mockTokens
+                if let mock = mockTokens.first(where: {
+                    $0.symbol.caseInsensitiveCompare("USDT") == .orderedSame ||
+                    $0.address?.caseInsensitiveCompare(address.toRaw()) == .orderedSame
+                }) {
+                    let price = mock.customPriceUSD ?? 1.0
+                    let rawQuantity = LocalMockStore.decimalToBigUInt(mock.amount, fractionDigits: mock.fractionDigits)
+                    return TradeAssetDetailsBalanceSnapshot(
+                        symbol: mock.symbol,
+                        imageURL: URL(string: "https://cache.tonapi.io/img/token/usdt.png"),
+                        amount: rawQuantity,
+                        fractionDigits: mock.fractionDigits,
+                        convertedAmount: mock.amount * price,
+                        tagText: nil,
+                        freshness: freshnessModel.freshness
+                    )
+                }
+            case .tronUsdt:
+                let mockTokens = LocalMockStore.shared.mockTokens
+                if let mock = mockTokens.first(where: { $0.symbol.caseInsensitiveCompare("USDT") == .orderedSame }) {
+                    let price = mock.customPriceUSD ?? 1.0
+                    let rawQuantity = LocalMockStore.decimalToBigUInt(mock.amount, fractionDigits: mock.fractionDigits)
+                    return TradeAssetDetailsBalanceSnapshot(
+                        symbol: TronSwift.USDT.symbol,
+                        imageURL: TronSwift.USDT.imageURL,
+                        amount: rawQuantity,
+                        fractionDigits: TronSwift.USDT.fractionDigits,
+                        convertedAmount: mock.amount * price,
+                        tagText: TronSwift.USDT.tag,
+                        freshness: freshnessModel.freshness
+                    )
+                }
+            default:
+                break
+            }
+        }
+
+        guard let convertedBalance = convertedBalanceStore.getState()[wallet]?.balance else {
             return nil
         }
 
