@@ -887,7 +887,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\ncase \"${CONFIGURATION}\" in\n    *Release) ;;\n    *) exit 0 ;;\nesac\n\n# WidgetKit reads fonts (UIAppFonts) and images out of process, so the widget keeps\n# the real bundle. The app and intents share it through a relative symlink.\n# Without the widget's bundle, keep the app's copy.\nname=KeeperResources_KeeperResources.bundle\ntarget=\"PlugIns/KeeperWidgetExtension.appex/$name\"\ncd \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\" || exit 1\n[ -d \"$target\" ] || exit 0\nrm -rf \"$name\"\nln -s \"$target\" \"$name\"\n";
+			shellScript = "exit 0\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

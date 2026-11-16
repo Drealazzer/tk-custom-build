@@ -9,6 +9,14 @@ public final class FirebaseConfigurator: NSObject {
     override private init() {}
 
     public func configure() {
-        FirebaseApp.configure()
+        if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+           let options = FirebaseOptions(contentsOfFile: path) {
+            if let currentBundleId = Bundle.main.bundleIdentifier {
+                options.bundleID = currentBundleId
+            }
+            FirebaseApp.configure(options: options)
+        } else {
+            FirebaseApp.configure()
+        }
     }
 }
