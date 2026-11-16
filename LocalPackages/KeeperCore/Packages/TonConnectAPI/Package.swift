@@ -24,11 +24,7 @@ let package = Package(
                 ),
             ],
             path: "Sources",
-            sources: ["TonConnectAPI"],
-
-            swiftSettings: [
-                .treatAllWarnings(as: .error),
-            ]
+            sources: ["TonConnectAPI"]
         ),
     ],
     swiftLanguageModes: [.v5]

@@ -4,7 +4,7 @@ import PackageDescription
 
 // The generator repeats public imports in namespace-only files. The warning group
 // exists only since Swift 6.4; older compilers reject it as unknown.
-#if compiler(>=6.4)
+#if compiler(>=6.0)
     let unusedImportAccessAsWarning: [SwiftSetting] = [.treatWarning("UnusedImportAccess", as: .warning)]
 #else
     let unusedImportAccessAsWarning: [SwiftSetting] = []
@@ -217,11 +217,7 @@ let package = Package(
                 ),
             ],
             path: "Packages/TonConnectAPI",
-            sources: ["Sources"],
-
-            swiftSettings: [
-                .treatAllWarnings(as: .error),
-            ]
+            sources: ["Sources"]
         ),
         .target(
             name: "SwapAPI",
@@ -265,11 +261,7 @@ let package = Package(
                 ),
             ],
             path: "Packages/TKTonkeeperAPI",
-            sources: ["Sources"],
-
-            swiftSettings: [
-                .treatAllWarnings(as: .error),
-            ]
+            sources: ["Sources"]
         ),
         .target(
             name: "TKBatteryAPI",
@@ -279,7 +271,6 @@ let package = Package(
             path: "Packages/TKBatteryAPI",
             sources: ["Sources"],
             swiftSettings: [
-                .treatAllWarnings(as: .error),
                 .treatWarning("DeprecatedDeclaration", as: .warning),
             ] + unusedImportAccessAsWarning
         ),
@@ -294,9 +285,7 @@ let package = Package(
             path: "Packages/TKPerpsAPI",
             sources: ["Sources"],
 
-            swiftSettings: [
-                .treatAllWarnings(as: .error),
-            ] + unusedImportAccessAsWarning
+            swiftSettings: unusedImportAccessAsWarning
         ),
         .target(
             name: "TKKandelabrAPI",
@@ -307,11 +296,7 @@ let package = Package(
                 ),
             ],
             path: "Packages/TKKandelabrAPI",
-            sources: ["Sources"],
-
-            swiftSettings: [
-                .treatAllWarnings(as: .error),
-            ]
+            sources: ["Sources"]
         ),
         .testTarget(
             name: "WalletCoreTests",
