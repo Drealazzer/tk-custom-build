@@ -288,21 +288,31 @@ public final class ProcessedBalanceStore: Store<ProcessedBalanceStore.Event, Pro
 
         if LocalMockStore.shared.isEnabled {
             let mockJettons = LocalMockStore.shared.makeProcessedJettonItems(jettonRates: jettonRates, currency: currency)
+            var seenMockAddresses = Set<TonSwift.Address>()
+            var cleanMockJettons = [ProcessedBalanceJettonItem]()
             for mockJetton in mockJettons {
-                if let idx = jettonItems.firstIndex(where: {
-                    $0.jetton.jettonInfo.symbol?.caseInsensitiveCompare(mockJetton.jetton.jettonInfo.symbol ?? "") == .orderedSame ||
-                    $0.jetton.jettonInfo.address == mockJetton.jetton.jettonInfo.address
-                }) {
-                    jettonItems[idx] = mockJetton
-                } else {
-                    jettonItems.append(mockJetton)
+                let addr = mockJetton.jetton.jettonInfo.address
+                if !seenMockAddresses.contains(addr) {
+                    seenMockAddresses.insert(addr)
+                    cleanMockJettons.append(mockJetton)
                 }
             }
+            jettonItems = cleanMockJettons
         }
 
         items.append(contentsOf: stakingItems.map { .staking($0) })
         items.append(contentsOf: jettonItems.map { .jetton($0) })
         items.append(.ethena(ethenaItem))
+
+        var uniqueItems = [ProcessedBalanceItem]()
+        var seenIdentifiers = Set<String>()
+        for item in items {
+            if !seenIdentifiers.contains(item.identifier) {
+                seenIdentifiers.insert(item.identifier)
+                uniqueItems.append(item)
+            }
+        }
+        items = uniqueItems
 
         let processedBalance = ProcessedBalance(
             items: items,

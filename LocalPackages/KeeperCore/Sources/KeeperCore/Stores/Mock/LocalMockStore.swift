@@ -228,9 +228,26 @@ public final class LocalMockStore: @unchecked Sendable {
         let tokens = storedState.tokens.filter { $0.symbol.uppercased() != "TON" }
         lock.unlock()
 
-        return tokens.map { token in
+        var seenAddresses = Set<Address>()
+        var result = [ProcessedBalanceJettonItem]()
+
+        for token in tokens {
             let addressStr = token.address ?? ""
-            let jettonAddress = (try? Address.parse(addressStr)) ?? JettonMasterAddress.tonUSDT
+            let jettonAddress: Address = {
+                if let raw = try? Address.parse(raw: addressStr) {
+                    return raw
+                }
+                if let parsed = try? Address.parse(addressStr) {
+                    return parsed
+                }
+                let hexSymbol = Data(token.symbol.utf8).map { String(format: "%02x", $0) }.joined()
+                let padded = String((hexSymbol + String(repeating: "0", count: 64)).prefix(64))
+                return (try? Address.parse(raw: "0:\(padded)")) ?? JettonMasterAddress.tonUSDT
+            }()
+
+            guard !seenAddresses.contains(jettonAddress) else { continue }
+            seenAddresses.insert(jettonAddress)
+
             let jettonInfo = JettonInfo(
                 isTransferable: true,
                 hasCustomPayload: false,
@@ -261,19 +278,22 @@ public final class LocalMockStore: @unchecked Sendable {
             let converted = token.amount * price
             let rawQuantity = Self.decimalToBigUInt(token.amount, fractionDigits: token.fractionDigits)
 
-            return ProcessedBalanceJettonItem(
-                id: token.id,
-                jetton: jettonItem,
-                amount: rawQuantity,
-                fractionalDigits: token.fractionDigits,
-                tag: nil,
-                currency: currency,
-                converted: converted,
-                price: price,
-                diff: rate?.diff24h,
-                shouldCalculateInTotal: true
+            result.append(
+                ProcessedBalanceJettonItem(
+                    id: jettonAddress.toRaw(),
+                    jetton: jettonItem,
+                    amount: rawQuantity,
+                    fractionalDigits: token.fractionDigits,
+                    tag: nil,
+                    currency: currency,
+                    converted: converted,
+                    price: price,
+                    diff: rate?.diff24h,
+                    shouldCalculateInTotal: true
+                )
             )
         }
+        return result
     }
 
     public func makeHistoryEvents(wallet: Wallet) -> [HistoryEvent] {

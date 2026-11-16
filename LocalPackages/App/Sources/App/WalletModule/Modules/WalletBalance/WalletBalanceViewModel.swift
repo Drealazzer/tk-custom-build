@@ -517,7 +517,15 @@ final class WalletBalanceViewModelImplementation:
         {
             listItemsConfigurations.merge(cellConfigurations) { $1 }
             snapshot.appendSections([.setup(section)])
-            snapshot.appendItems(section.items.map { .listItem($0) }, toSection: .setup(section))
+            var existingItems = Set(snapshot.itemIdentifiers)
+            let itemsToAppend = section.items.map { WalletBalance.SnapshotItem.listItem($0) }.filter { item in
+                if existingItems.contains(item) {
+                    return false
+                }
+                existingItems.insert(item)
+                return true
+            }
+            snapshot.appendItems(itemsToAppend, toSection: .setup(section))
         }
 
         var moreAssetsPreviewAvatars = [AssetAvatarViewImageSource]()
@@ -532,7 +540,16 @@ final class WalletBalanceViewModelImplementation:
             moreAssetsPreviewAvatars = previewAvatars
             listItemsConfigurations.merge(cellConfigurations) { $1 }
             snapshot.appendSections([.balance(section)])
-            snapshot.appendItems(mapBalanceSnapshotItems(section.items), toSection: .balance(section))
+
+            var existingItems = Set(snapshot.itemIdentifiers)
+            let itemsToAppend = mapBalanceSnapshotItems(section.items).filter { item in
+                if existingItems.contains(item) {
+                    return false
+                }
+                existingItems.insert(item)
+                return true
+            }
+            snapshot.appendItems(itemsToAppend, toSection: .balance(section))
         }
 
         snapshot.appendSections([.collectibles])
@@ -571,10 +588,13 @@ final class WalletBalanceViewModelImplementation:
         var cellConfigurations = [String: WalletBalanceListCell.Configuration]()
         var sectionItems = [WalletBalance.ListItem]()
         var builtItems = [(listItem: WalletBalance.ListItem, balanceItem: WalletBalanceBalanceModel.Item)]()
+        var seenListItemIdentifiers = Set<String>()
 
         for balanceListItem in balanceListItems.items {
             switch balanceListItem.balanceItem {
             case let .ton(item):
+                guard !seenListItemIdentifiers.contains(item.id) else { continue }
+                seenListItemIdentifiers.insert(item.id)
                 let cellConfiguration = listMapper.mapTonItem(
                     item,
                     wallet: balanceListItems.wallet,
@@ -589,6 +609,8 @@ final class WalletBalanceViewModelImplementation:
                 cellConfigurations[item.id] = cellConfiguration
                 builtItems.append((sectionItem, balanceListItem))
             case let .jetton(item):
+                guard !seenListItemIdentifiers.contains(item.id) else { continue }
+                seenListItemIdentifiers.insert(item.id)
                 let isNetworkBadgeVisible = item.jetton.jettonInfo.isTonUSDT && balanceListItems.wallet.tron != nil
                 let cellConfiguration = listMapper.mapJettonItem(
                     item,
@@ -604,6 +626,8 @@ final class WalletBalanceViewModelImplementation:
                 cellConfigurations[item.id] = cellConfiguration
                 builtItems.append((sectionItem, balanceListItem))
             case let .staking(item):
+                guard !seenListItemIdentifiers.contains(item.id) else { continue }
+                seenListItemIdentifiers.insert(item.id)
                 let cellConfiguration = listMapper.mapStakingItem(
                     item,
                     isSecure: balanceListItems.isSecure,
@@ -631,6 +655,8 @@ final class WalletBalanceViewModelImplementation:
                 {
                     continue
                 }
+                guard !seenListItemIdentifiers.contains(item.id) else { continue }
+                seenListItemIdentifiers.insert(item.id)
 
                 let cellConfiguration = listMapper.mapTronUSDTItem(
                     item,
@@ -651,6 +677,8 @@ final class WalletBalanceViewModelImplementation:
                 {
                     continue
                 }
+                guard !seenListItemIdentifiers.contains(item.id) else { continue }
+                seenListItemIdentifiers.insert(item.id)
 
                 let cellConfiguration = listMapper.mapTronTRXItem(
                     item,
@@ -665,6 +693,9 @@ final class WalletBalanceViewModelImplementation:
                 builtItems.append((sectionItem, balanceListItem))
             case let .ethena(item):
                 let identifier = "ethena_\(item.id)"
+                guard !seenListItemIdentifiers.contains(identifier) else { continue }
+                seenListItemIdentifiers.insert(identifier)
+
                 let cellConfiguration = listMapper.mapEthenaItem(
                     item,
                     isSecure: balanceListItems.isSecure,
