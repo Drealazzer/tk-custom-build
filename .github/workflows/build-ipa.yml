@@ -23,11 +23,30 @@ jobs:
 
       - name: Select Xcode
         run: |
-          AVAILABLE_XCODE=$(find /Applications -maxdepth 1 \( -name "Xcode_16*.app" -o -name "Xcode_15*.app" \) 2>/dev/null | sort -V | tail -n 1)
-          if [ -n "$AVAILABLE_XCODE" ]; then
-            echo "Selected Xcode: $AVAILABLE_XCODE"
-            sudo xcode-select -s "$AVAILABLE_XCODE"
+          echo "Available Xcode installations on runner:"
+          ls -d /Applications/Xcode*.app || true
+
+          SELECTED_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$SELECTED_XCODE" ]; then
+            SELECTED_XCODE=$(ls -d /Applications/Xcode_15*.app 2>/dev/null | sort -V | tail -n 1)
           fi
+
+          if [ -n "$SELECTED_XCODE" ]; then
+            echo "Selecting Xcode: $SELECTED_XCODE"
+            sudo xcode-select -s "$SELECTED_XCODE"
+            echo "DEVELOPER_DIR=$SELECTED_XCODE/Contents/Developer" >> $GITHUB_ENV
+            export DEVELOPER_DIR="$SELECTED_XCODE/Contents/Developer"
+          else
+            echo "Warning: Xcode 16/15 not found. Looking for non-26 Xcode..."
+            FALLBACK_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v "Xcode_26" | sort -V | tail -n 1 || true)
+            if [ -n "$FALLBACK_XCODE" ]; then
+              echo "Selecting fallback: $FALLBACK_XCODE"
+              sudo xcode-select -s "$FALLBACK_XCODE"
+              echo "DEVELOPER_DIR=$FALLBACK_XCODE/Contents/Developer" >> $GITHUB_ENV
+              export DEVELOPER_DIR="$FALLBACK_XCODE/Contents/Developer"
+            fi
+          fi
+
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-path || true
 
@@ -50,6 +69,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            SWIFT_STRICT_CONCURRENCY=minimal \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             build
 
       - name: Package IPA

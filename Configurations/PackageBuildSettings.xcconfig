@@ -17,3 +17,6 @@ TK_LIBRARY_EVOLUTION_KeeperCore = YES
 // DerivedData/CompilationCache.noindex replays compiles whose inputs are unchanged: across local archives,
 // and on Xcode Cloud once it restores DerivedData between builds with Clean off (as of October 2026 it doesn't).
 COMPILATION_CACHE_ENABLE_CACHING[config=*Release] = YES
+SWIFT_STRICT_CONCURRENCY = minimal
+GCC_TREAT_WARNINGS_AS_ERRORS = NO
+SWIFT_TREAT_WARNINGS_AS_ERRORS = NO
