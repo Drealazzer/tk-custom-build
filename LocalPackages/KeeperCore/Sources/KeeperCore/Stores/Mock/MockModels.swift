@@ -116,3 +116,50 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
         ),
     ]
 }
+
+@frozen public enum MockNFTType: String, Codable, Sendable, CaseIterable {
+    case tonDNS
+    case telegramUsername
+    case telegramGift
+    case genericNFT
+
+    public var title: String {
+        switch self {
+        case .tonDNS: return "TON DNS"
+        case .telegramUsername: return "Telegram Username"
+        case .telegramGift: return "TG Gift"
+        case .genericNFT: return "NFT"
+        }
+    }
+}
+
+public struct MockNFTItem: Codable, Sendable, Identifiable, Equatable {
+    public let id: String
+    public var type: MockNFTType
+    public var name: String
+    public var collectionName: String?
+    public var imageURL: String?
+    public var dns: String?
+    public var username: String?
+    public var fragmentURL: String?
+
+    public init(
+        id: String = UUID().uuidString,
+        type: MockNFTType,
+        name: String,
+        collectionName: String? = nil,
+        imageURL: String? = nil,
+        dns: String? = nil,
+        username: String? = nil,
+        fragmentURL: String? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.name = name
+        self.collectionName = collectionName
+        self.imageURL = imageURL
+        self.dns = dns
+        self.username = username
+        self.fragmentURL = fragmentURL
+    }
+}

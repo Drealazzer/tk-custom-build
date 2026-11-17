@@ -121,7 +121,7 @@ final class LocalMockSettingsViewController: UIViewController {
 
 extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDelegate {
     func numberOfSections(in tableView: UITableView) -> Int {
-        3
+        4
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -132,6 +132,8 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
             return LocalMockStore.shared.mockTokens.count // Only active TON & USDT
         case 2:
             return LocalMockStore.shared.mockEvents.count + 1 // Add Event button + Events
+        case 3:
+            return LocalMockStore.shared.mockNFTs.count + 1 // Add NFT button + NFTs
         default:
             return 0
         }
@@ -142,6 +144,7 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
         case 0: return "Управление симуляцией"
         case 1: return "Активные токены (TON и USDT)"
         case 2: return "История транзакций"
+        case 3: return "NFT и Коллеции"
         default: return nil
         }
     }
@@ -246,6 +249,40 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
                 return cell
             }
 
+        case 3:
+            if indexPath.row == 0 {
+                let cell = UITableViewCell(style: .default, reuseIdentifier: "AddNFTCell")
+                cell.textLabel?.text = "+ Добавить NFT / Домен / Подарок"
+                cell.textLabel?.textColor = .Accent.blue
+                cell.backgroundColor = .Background.content
+                return cell
+            } else {
+                let nfts = LocalMockStore.shared.mockNFTs
+                let nft = nfts[indexPath.row - 1]
+                let cell = UITableViewCell(style: .subtitle, reuseIdentifier: "NFTCell")
+                cell.backgroundColor = .Background.content
+                cell.accessoryType = .disclosureIndicator
+
+                cell.textLabel?.text = "\(nft.name)  •  \(nft.type.title)"
+                cell.textLabel?.textColor = .Text.primary
+                cell.textLabel?.font = TKTextStyle.label1.font
+
+                let detail: String
+                switch nft.type {
+                case .tonDNS:
+                    detail = nft.dns ?? ""
+                case .telegramUsername:
+                    detail = nft.username ?? ""
+                case .telegramGift:
+                    detail = nft.collectionName ?? "Telegram Gift"
+                case .genericNFT:
+                    detail = nft.collectionName ?? "NFT"
+                }
+                cell.detailTextLabel?.text = detail
+                cell.detailTextLabel?.textColor = .Text.secondary
+                return cell
+            }
+
         default:
             return UITableViewCell()
         }
@@ -294,23 +331,48 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
                 present(nav, animated: true)
             }
 
+        case 3:
+            if indexPath.row == 0 {
+                let editor = MockNFTEditorViewController()
+                editor.onSave = { [weak self] in
+                    self?.tableView.reloadData()
+                }
+                let nav = UINavigationController(rootViewController: editor)
+                present(nav, animated: true)
+            } else {
+                let nfts = LocalMockStore.shared.mockNFTs
+                let nft = nfts[indexPath.row - 1]
+                let editor = MockNFTEditorViewController(item: nft)
+                editor.onSave = { [weak self] in
+                    self?.tableView.reloadData()
+                }
+                let nav = UINavigationController(rootViewController: editor)
+                present(nav, animated: true)
+            }
+
         default:
             break
         }
     }
 
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        if indexPath.section == 2 && indexPath.row > 0 {
+        if (indexPath.section == 2 || indexPath.section == 3) && indexPath.row > 0 {
             return true
         }
         return false
     }
 
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete, indexPath.section == 2, indexPath.row > 0 {
-            let event = LocalMockStore.shared.mockEvents[indexPath.row - 1]
-            LocalMockStore.shared.removeEvent(id: event.id)
-            tableView.reloadData()
+        if editingStyle == .delete {
+            if indexPath.section == 2 && indexPath.row > 0 {
+                let event = LocalMockStore.shared.mockEvents[indexPath.row - 1]
+                LocalMockStore.shared.removeEvent(id: event.id)
+                tableView.reloadData()
+            } else if indexPath.section == 3 && indexPath.row > 0 {
+                let nft = LocalMockStore.shared.mockNFTs[indexPath.row - 1]
+                LocalMockStore.shared.removeMockNFT(id: nft.id)
+                tableView.reloadData()
+            }
         }
     }
 }

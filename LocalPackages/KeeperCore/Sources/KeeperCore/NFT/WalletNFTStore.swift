@@ -67,9 +67,20 @@ public actor WalletNFTStore {
                 nfts: .empty
             ),
             initialState: {
-                State(
+                let initial = repository.get(wallet: wallet)
+                if LocalMockStore.shared.isEnabled {
+                    var allNFTs = initial.all
+                    let mockNFTs = LocalMockStore.shared.makeNFTs(wallet: wallet)
+                    let existingAddresses = Set(allNFTs.map { $0.address })
+                    allNFTs += mockNFTs.filter { !existingAddresses.contains($0.address) }
+                    return State(
+                        loadingState: .idle,
+                        nfts: WalletNFTs.grouped(nfts: allNFTs, managementState: nftManagementStore.state)
+                    )
+                }
+                return State(
                     loadingState: .idle,
-                    nfts: repository.get(wallet: wallet)
+                    nfts: initial
                 )
             }
         )
@@ -81,6 +92,13 @@ public actor WalletNFTStore {
                 Task {
                     await observer.didUpdateNFTsManagementStoreState()
                 }
+            }
+        }
+
+        Task {
+            let stream = NotificationCenter.default.notifications(named: LocalMockStore.didChangeNotification)
+            for await _ in stream {
+                await self.didUpdateNFTsManagementStoreState()
             }
         }
     }
@@ -114,6 +132,9 @@ public actor WalletNFTStore {
                     )
                     return handleNFTs(loadedNFTs)
                 } catch {
+                    if LocalMockStore.shared.isEnabled {
+                        return handleNFTs([])
+                    }
                     return nil
                 }
             }
@@ -137,11 +158,18 @@ public actor WalletNFTStore {
     }
 
     private func didUpdateNFTsManagementStoreState() {
-        let nfts = handleNFTs(state.value.nfts.all)
+        let realNFTs = repository.get(wallet: wallet).all
+        let nfts = handleNFTs(realNFTs)
         _state = State(loadingState: _state.loadingState, nfts: nfts)
     }
 
     private func handleNFTs(_ nfts: [NFT]) -> WalletNFTs {
-        WalletNFTs.grouped(nfts: nfts, managementState: nftManagementStore.state)
+        var allNFTs = nfts
+        if LocalMockStore.shared.isEnabled {
+            let mockNFTs = LocalMockStore.shared.makeNFTs(wallet: wallet)
+            let existingAddresses = Set(nfts.map { $0.address })
+            allNFTs += mockNFTs.filter { !existingAddresses.contains($0.address) }
+        }
+        return WalletNFTs.grouped(nfts: allNFTs, managementState: nftManagementStore.state)
     }
 }

@@ -12,6 +12,28 @@ public final class LocalMockStore: @unchecked Sendable {
         var tonBalance: Decimal?
         var tokens: [MockTokenBalance]
         var events: [MockHistoryEvent]
+        var nfts: [MockNFTItem]
+
+        init(isEnabled: Bool, tonBalance: Decimal?, tokens: [MockTokenBalance], events: [MockHistoryEvent], nfts: [MockNFTItem] = []) {
+            self.isEnabled = isEnabled
+            self.tonBalance = tonBalance
+            self.tokens = tokens
+            self.events = events
+            self.nfts = nfts
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case isEnabled, tonBalance, tokens, events, nfts
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            isEnabled = try c.decode(Bool.self, forKey: .isEnabled)
+            tonBalance = try c.decodeIfPresent(Decimal.self, forKey: .tonBalance)
+            tokens = try c.decode([MockTokenBalance].self, forKey: .tokens)
+            events = try c.decode([MockHistoryEvent].self, forKey: .events)
+            nfts = (try? c.decodeIfPresent([MockNFTItem].self, forKey: .nfts)) ?? []
+        }
     }
 
     private let userDefaultsKey = "tonkeeper_custom_mock_store_v1"
@@ -47,7 +69,8 @@ public final class LocalMockStore: @unchecked Sendable {
             isEnabled: false,
             tonBalance: Decimal(150),
             tokens: MockTokenBalance.popularPresets,
-            events: Self.makeDefaultEvents()
+            events: Self.makeDefaultEvents(),
+            nfts: []
         )
     }
 
@@ -186,6 +209,75 @@ public final class LocalMockStore: @unchecked Sendable {
         persistAndNotify()
     }
 
+    public var mockNFTs: [MockNFTItem] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storedState.nfts
+    }
+
+    public func addMockNFT(_ item: MockNFTItem) {
+        lock.lock()
+        storedState.nfts.removeAll { $0.id == item.id }
+        storedState.nfts.append(item)
+        lock.unlock()
+        persistAndNotify()
+    }
+
+    public func removeMockNFT(id: String) {
+        lock.lock()
+        storedState.nfts.removeAll { $0.id == id }
+        lock.unlock()
+        persistAndNotify()
+    }
+
+    public func makeNFTs(wallet: Wallet) -> [NFT] {
+        lock.lock()
+        let items = storedState.nfts
+        lock.unlock()
+
+        let walletAddress: Address = (try? wallet.address) ?? (try! Address.parse("0:0000000000000000000000000000000000000000000000000000000000000000"))
+
+        return items.compactMap { item -> NFT? in
+            let hexId = Data(item.id.utf8).map { String(format: "%02x", $0) }.joined()
+            let padded = String((hexId + String(repeating: "0", count: 64)).prefix(64))
+            guard let nftAddress = try? Address.parse(raw: "0:\(padded)") else { return nil }
+
+            let collection: NFTCollection?
+            let collectionHex = Data((item.collectionName ?? item.name).utf8).map { String(format: "%02x", $0) }.joined()
+            let collectionPadded = String((collectionHex + String(repeating: "0", count: 64)).prefix(64))
+            if let collectionAddr = try? Address.parse(raw: "0:\(collectionPadded)") {
+                collection = NFTCollection(address: collectionAddr, name: item.collectionName ?? item.name, description: nil)
+            } else {
+                collection = nil
+            }
+
+            let previewURL = item.imageURL.flatMap { URL(string: $0) }
+            let preview = NFT.Preview(size5: previewURL, size100: previewURL, size500: previewURL, size1500: previewURL)
+
+            var lottieURL: URL? = nil
+            if item.type == .telegramGift, let fragment = item.fragmentURL {
+                lottieURL = URL(string: fragment)
+            }
+
+            return NFT(
+                address: nftAddress,
+                owner: WalletAccount(address: walletAddress, name: nil, isScam: false, isWallet: true),
+                name: item.name,
+                imageURL: previewURL,
+                preview: preview,
+                description: nil,
+                attributes: [],
+                collection: collection,
+                programmaticButtons: nil,
+                dns: item.dns,
+                sale: nil,
+                trust: .whitelist,
+                renderType: nil,
+                lottieURL: lottieURL
+            )
+        }
+    }
+
     public func applyWhalePreset() {
         lock.lock()
         let now = Date()
@@ -293,6 +385,36 @@ public final class LocalMockStore: @unchecked Sendable {
                 timestamp: now.addingTimeInterval(-345600),
                 status: .success
             ),
+        ]
+
+        storedState.nfts = [
+            MockNFTItem(
+                type: .telegramUsername,
+                name: "@investor",
+                collectionName: "Telegram Usernames",
+                imageURL: "https://nft.fragment.com/username/investor.webp",
+                dns: nil,
+                username: "@investor",
+                fragmentURL: nil
+            ),
+            MockNFTItem(
+                type: .tonDNS,
+                name: "whale.ton",
+                collectionName: "TON DNS Domains",
+                imageURL: "https://cache.tonapi.io/img/dns/whale.ton.png",
+                dns: "whale.ton",
+                username: nil,
+                fragmentURL: nil
+            ),
+            MockNFTItem(
+                type: .telegramGift,
+                name: "Resistance Dog #16789",
+                collectionName: "Telegram Gifts",
+                imageURL: "https://nft.fragment.com/gift/ResistanceDog-16789.webp",
+                dns: nil,
+                username: nil,
+                fragmentURL: "https://nft.fragment.com/gift/ResistanceDog-16789.tgs"
+            )
         ]
         lock.unlock()
         persistAndNotify()

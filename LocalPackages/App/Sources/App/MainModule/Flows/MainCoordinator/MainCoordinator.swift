@@ -904,8 +904,14 @@ final class MainCoordinator: RouterCoordinator<TabBarControllerRouter> {
     func setupTabBarTaps() {
         guard let tabBarController = router.rootViewController as? TKTabBarController else { return }
         tabBarController.didLongPressTabBarItem = { [weak self] index in
-            guard index == 0 else { return }
-            self?.openWalletPicker()
+            guard let self else { return }
+            if index == 0 {
+                self.openWalletPicker()
+            } else if let state = try? self.mainCoordinatorStateManager.getState(),
+                      let browserIndex = state.tabs.firstIndex(of: .browser),
+                      index == browserIndex {
+                self.openLocalMockSettings()
+            }
         }
         tabBarController.didTripleTapTabBarItem = { [weak self] index in
             guard let self,

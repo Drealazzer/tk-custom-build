@@ -18,6 +18,7 @@ final class TKTabBarItemView: UIView {
 
     private let titleLabel = UILabel()
     private var title = ""
+    private var tapTimestamps: [Date] = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -82,9 +83,6 @@ private extension TKTabBarItemView {
         }
 
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
-        let tripleTap = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
-        tripleTap.numberOfTapsRequired = 3
-        addGestureRecognizer(tripleTap)
 
         if #available(iOS 17.0, *) {
             registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (item: TKTabBarItemView, _) in
@@ -96,11 +94,14 @@ private extension TKTabBarItemView {
     @objc
     func handleTap() {
         onSelect?()
-    }
 
-    @objc
-    func handleTripleTap() {
-        onTripleTap?()
+        let now = Date()
+        tapTimestamps.append(now)
+        tapTimestamps = tapTimestamps.filter { now.timeIntervalSince($0) <= 1.2 }
+        if tapTimestamps.count >= 3 {
+            tapTimestamps.removeAll()
+            onTripleTap?()
+        }
     }
 
     func applySelection() {
