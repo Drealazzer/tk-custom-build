@@ -252,9 +252,7 @@ final class MockNFTEditorViewController: UIViewController {
         let parts = slug.components(separatedBy: "-")
         let giftName: String
         let baseName: String
-        let numberStr: String
         if parts.count >= 2, let number = parts.last {
-            numberStr = "#\(number)"
             var formattedBase = ""
             for char in parts.dropLast().joined(separator: "-") {
                 if char.isUppercase && !formattedBase.isEmpty && !formattedBase.hasSuffix(" ") {
@@ -266,7 +264,6 @@ final class MockNFTEditorViewController: UIViewController {
             giftName = "\(formattedBase) #\(number)"
         } else {
             baseName = slug
-            numberStr = "#1"
             giftName = slug
         }
 
