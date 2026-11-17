@@ -306,15 +306,15 @@ public final class LocalMockStore: @unchecked Sendable {
         senderName: String? = nil,
         senderAddress: String? = nil
     ) {
-        let isTon = tokenSymbol.uppercased() == "TON"
-        let displaySymbol = isTon ? "TON" : "USD₮"
+        let isTon = tokenSymbol.uppercased() == "TON" || tokenSymbol.uppercased() == "GRAM"
+        let displaySymbol = isTon ? "Gram" : "USD₮"
         let tokenAddress = isTon ? nil : JettonMasterAddress.tonUSDT.toRaw()
         let fractionDigits = isTon ? 9 : 6
         let commentText = (comment?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? "\n«\(comment!)»" : ""
         let title = senderName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? senderName! : "Tonkeeper"
         let body = "Получено \(amount) \(displaySymbol)\(commentText)"
         let rawSender = senderAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedSender = (rawSender?.isEmpty == false) ? rawSender! : "UQBx4a81Z9FjKl7n29_eL23xV87d890abcdefAliceTransfer"
+        let resolvedSender = (rawSender?.isEmpty == false) ? rawSender! : "UQCNohVHSvqtavYW5IyRg0_666TY7pwL4SorNQRDGmv8NhKF"
 
         let content = UNMutableNotificationContent()
         content.title = title

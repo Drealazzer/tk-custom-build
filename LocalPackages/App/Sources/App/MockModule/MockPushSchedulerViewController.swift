@@ -1,6 +1,7 @@
 import KeeperCore
 import SnapKit
 import TKUIKit
+import TonSwift
 import UIKit
 import UserNotifications
 
@@ -9,7 +10,7 @@ final class MockPushSchedulerViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let contentView = UIView()
 
-    private let tokenSegmentedControl = UISegmentedControl(items: ["USD₮ (Tether)", "TON (Toncoin)"])
+    private let tokenSegmentedControl = UISegmentedControl(items: ["USD₮ (Tether)", "Gram"])
     private let amountField = UITextField()
     private let quickAmountsStack = UIStackView()
     private let delaySegmentedControl = UISegmentedControl(items: ["5 сек", "10 сек", "30 сек", "1 мин"])
@@ -65,7 +66,7 @@ final class MockPushSchedulerViewController: UIViewController {
         configureTextField(commentField, placeholder: "Комментарий (например: Оплата за проект)", returnKeyType: .next, toolbar: toolbar)
         configureTextField(senderField, placeholder: "Отправитель в пуше (по умолчанию: Tonkeeper)", returnKeyType: .next, toolbar: toolbar)
         configureTextField(senderAddressField, placeholder: "Адрес отправителя (UQ...)", returnKeyType: .done, toolbar: toolbar)
-        senderAddressField.text = "UQBx4a81Z9FjKl7n29_eL23xV87d890abcdefAliceTransfer"
+        senderAddressField.text = "UQCNohVHSvqtavYW5IyRg0_666TY7pwL4SorNQRDGmv8NhKF"
 
         scheduleButton.setTitle("Запустить таймер (сверните приложение)", for: .normal)
         scheduleButton.setTitleColor(.white, for: .normal)
@@ -81,7 +82,7 @@ final class MockPushSchedulerViewController: UIViewController {
             createLabeledField(label: "Через сколько прислать Push", field: delaySegmentedControl),
             createLabeledField(label: "Комментарий (необязательно)", field: commentField),
             createLabeledField(label: "Имя отправителя в пуше", field: senderField),
-            createLabeledField(label: "Адрес отправителя монет", field: senderAddressField),
+            createAddressField(),
             scheduleButton,
         ])
         stack.axis = .vertical
@@ -201,6 +202,41 @@ final class MockPushSchedulerViewController: UIViewController {
         container.addArrangedSubview(titleLabel)
         container.addArrangedSubview(field)
         return container
+    }
+
+    private func createAddressField() -> UIView {
+        let container = UIStackView()
+        container.axis = .vertical
+        container.spacing = 6
+
+        let headerStack = UIStackView()
+        headerStack.axis = .horizontal
+        headerStack.distribution = .equalSpacing
+        headerStack.alignment = .center
+
+        let titleLabel = UILabel()
+        titleLabel.text = "Адрес отправителя монет"
+        titleLabel.textColor = .Text.secondary
+        titleLabel.font = TKTextStyle.label2.font
+
+        let randomButton = UIButton(type: .system)
+        randomButton.setTitle("🎲 Случайный", for: .normal)
+        randomButton.setTitleColor(.Accent.blue, for: .normal)
+        randomButton.titleLabel?.font = TKTextStyle.label2.font
+        randomButton.addTarget(self, action: #selector(didTapRandomAddress), for: .touchUpInside)
+
+        headerStack.addArrangedSubview(titleLabel)
+        headerStack.addArrangedSubview(randomButton)
+
+        container.addArrangedSubview(headerStack)
+        container.addArrangedSubview(senderAddressField)
+        return container
+    }
+
+    @objc private func didTapRandomAddress() {
+        let randomBytes = (0..<32).map { _ in UInt8.random(in: 0...255) }
+        let randomAddress = Address(workchain: 0, hash: Data(randomBytes)).toFriendly(testOnly: false, bounceable: false).toString()
+        senderAddressField.text = randomAddress
     }
 
     @objc private func didTapSchedule() {
