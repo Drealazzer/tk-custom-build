@@ -280,11 +280,10 @@ final class MockNFTEditorViewController: UIViewController {
         }
 
         let formattedCollection: String = {
-            var formatted = baseName
-            if !formatted.hasSuffix("s") {
-                return "\(formatted)s"
+            if !baseName.hasSuffix("s") {
+                return "\(baseName)s"
             }
-            return formatted
+            return baseName
         }()
 
         let webpURL = "https://nft.fragment.com/gift/\(slug).webp"

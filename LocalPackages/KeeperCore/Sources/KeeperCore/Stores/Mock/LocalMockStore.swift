@@ -291,10 +291,12 @@ public final class LocalMockStore: @unchecked Sendable {
 
             let preview = NFT.Preview(size5: previewURL, size100: previewURL, size500: previewURL, size1500: previewURL)
 
-            var lottieURL: URL? = nil
-            if item.type == .telegramGift, let fragment = item.fragmentURL {
-                lottieURL = URL(string: fragment)
-            }
+            let lottieURL: URL? = {
+                if item.type == .telegramGift, let fragment = item.fragmentURL {
+                    return URL(string: fragment)
+                }
+                return nil
+            }()
 
             let programmaticButtons: [NFT.Button]? = {
                 switch item.type {
