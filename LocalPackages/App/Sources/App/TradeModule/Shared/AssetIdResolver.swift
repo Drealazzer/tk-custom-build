@@ -18,6 +18,22 @@ extension AssetIdResolver {
         switch TradingAssetToken(assetId: assetId) {
         case .ton:
             return .image(.TKUIKit.Icons.Size44.tonLogo, chainIcon: nil)
+        case let .jetton(address) where address == JettonMasterAddress.tonUSDT:
+            return .image(
+                .TKUIKit.Icons.Size44.currencyUsdt,
+                chainIcon: AssetIdResolver.chainIcon(
+                    for: assetId,
+                    multichainEnabled: multichainEnabled
+                )
+            )
+        case .tronUsdt:
+            return .image(
+                .TKUIKit.Icons.Size44.currencyUsdt,
+                chainIcon: AssetIdResolver.chainIcon(
+                    for: assetId,
+                    multichainEnabled: multichainEnabled
+                )
+            )
         // A legacy wallet has no catalog entry to carry a TRX image, unlike a multichain one.
         case .tronTrx where !multichainEnabled:
             return .image(.TKUIKit.Icons.Size44.trxChain, chainIcon: nil)

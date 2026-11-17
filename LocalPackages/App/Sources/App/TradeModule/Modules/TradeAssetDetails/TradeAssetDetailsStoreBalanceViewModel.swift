@@ -180,24 +180,28 @@ private extension TradeAssetDetailsStoreBalanceViewModel {
                 let mockTokens = LocalMockStore.shared.mockTokens
                 if let mock = mockTokens.first(where: {
                     $0.symbol.caseInsensitiveCompare("USDT") == .orderedSame ||
+                    $0.symbol == "USD₮" ||
                     $0.address?.caseInsensitiveCompare(address.toRaw()) == .orderedSame
                 }) {
-                    let price = mock.customPriceUSD ?? 1.0
+                    let isUSDT = mock.symbol.caseInsensitiveCompare("USDT") == .orderedSame || mock.symbol == "USD₮"
+                    let price = mock.customPriceUSD ?? (isUSDT ? 0.99 : 1.0)
                     let rawQuantity = LocalMockStore.decimalToBigUInt(mock.amount, fractionDigits: mock.fractionDigits)
                     return TradeAssetDetailsBalanceSnapshot(
-                        symbol: mock.symbol,
+                        symbol: isUSDT ? "USD₮" : mock.symbol,
                         imageURL: URL(string: "https://cache.tonapi.io/img/token/usdt.png"),
                         amount: rawQuantity,
                         fractionDigits: mock.fractionDigits,
                         convertedAmount: mock.amount * price,
-                        tagText: nil,
+                        tagText: isUSDT ? "TON" : nil,
                         freshness: freshnessModel.freshness
                     )
                 }
             case .tronUsdt:
                 let mockTokens = LocalMockStore.shared.mockTokens
-                if let mock = mockTokens.first(where: { $0.symbol.caseInsensitiveCompare("USDT") == .orderedSame }) {
-                    let price = mock.customPriceUSD ?? 1.0
+                if let mock = mockTokens.first(where: {
+                    $0.symbol.caseInsensitiveCompare("USDT") == .orderedSame || $0.symbol == "USD₮"
+                }) {
+                    let price = mock.customPriceUSD ?? 0.99
                     let rawQuantity = LocalMockStore.decimalToBigUInt(mock.amount, fractionDigits: mock.fractionDigits)
                     return TradeAssetDetailsBalanceSnapshot(
                         symbol: TronSwift.USDT.symbol,

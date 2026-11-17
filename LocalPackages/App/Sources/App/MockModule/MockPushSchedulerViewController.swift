@@ -15,6 +15,7 @@ final class MockPushSchedulerViewController: UIViewController {
     private let delaySegmentedControl = UISegmentedControl(items: ["5 сек", "10 сек", "30 сек", "1 мин"])
     private let commentField = UITextField()
     private let senderField = UITextField()
+    private let senderAddressField = UITextField()
     private let scheduleButton = UIButton(type: .system)
 
     override func viewDidLoad() {
@@ -62,7 +63,9 @@ final class MockPushSchedulerViewController: UIViewController {
         delaySegmentedControl.selectedSegmentIndex = 0 // 5 sec default
 
         configureTextField(commentField, placeholder: "Комментарий (например: Оплата за проект)", returnKeyType: .next, toolbar: toolbar)
-        configureTextField(senderField, placeholder: "Отправитель (по умолчанию: Tonkeeper)", returnKeyType: .done, toolbar: toolbar)
+        configureTextField(senderField, placeholder: "Отправитель в пуше (по умолчанию: Tonkeeper)", returnKeyType: .next, toolbar: toolbar)
+        configureTextField(senderAddressField, placeholder: "Адрес отправителя (UQ...)", returnKeyType: .done, toolbar: toolbar)
+        senderAddressField.text = "UQBx4a81Z9FjKl7n29_eL23xV87d890abcdefAliceTransfer"
 
         scheduleButton.setTitle("Запустить таймер (сверните приложение)", for: .normal)
         scheduleButton.setTitleColor(.white, for: .normal)
@@ -78,6 +81,7 @@ final class MockPushSchedulerViewController: UIViewController {
             createLabeledField(label: "Через сколько прислать Push", field: delaySegmentedControl),
             createLabeledField(label: "Комментарий (необязательно)", field: commentField),
             createLabeledField(label: "Имя отправителя в пуше", field: senderField),
+            createLabeledField(label: "Адрес отправителя монет", field: senderAddressField),
             scheduleButton,
         ])
         stack.axis = .vertical
@@ -206,11 +210,12 @@ final class MockPushSchedulerViewController: UIViewController {
             return
         }
 
-        let symbol = tokenSegmentedControl.selectedSegmentIndex == 0 ? "USDT" : "TON"
+        let symbol = tokenSegmentedControl.selectedSegmentIndex == 0 ? "USD₮" : "TON"
         let delays: [TimeInterval] = [5, 10, 30, 60]
         let delay = delays[min(max(0, delaySegmentedControl.selectedSegmentIndex), delays.count - 1)]
         let comment = commentField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
         let sender = senderField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let senderAddress = senderAddressField.text?.trimmingCharacters(in: .whitespacesAndNewlines)
 
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             DispatchQueue.main.async {
@@ -219,7 +224,8 @@ final class MockPushSchedulerViewController: UIViewController {
                     amount: amount,
                     delaySeconds: delay,
                     comment: comment,
-                    senderName: sender
+                    senderName: sender,
+                    senderAddress: senderAddress
                 )
 
                 let alert = UIAlertController(
@@ -254,6 +260,8 @@ extension MockPushSchedulerViewController: UITextFieldDelegate {
             commentField.becomeFirstResponder()
         } else if textField == commentField {
             senderField.becomeFirstResponder()
+        } else if textField == senderField {
+            senderAddressField.becomeFirstResponder()
         } else {
             view.endEditing(true)
         }

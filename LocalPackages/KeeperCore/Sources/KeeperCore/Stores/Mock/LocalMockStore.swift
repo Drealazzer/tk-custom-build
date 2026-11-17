@@ -21,12 +21,20 @@ public final class LocalMockStore: @unchecked Sendable {
     private init() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
            var state = try? JSONDecoder().decode(State.self, from: data) {
-            state.tokens = state.tokens.filter { $0.symbol.uppercased() == "TON" || $0.symbol.uppercased() == "USDT" }
-            if !state.tokens.contains(where: { $0.symbol.uppercased() == "USDT" }) {
+            state.tokens = state.tokens.filter {
+                $0.symbol.uppercased() == "TON" || $0.symbol.uppercased() == "USDT" || $0.symbol == "USD₮"
+            }
+            if !state.tokens.contains(where: { $0.symbol.uppercased() == "USDT" || $0.symbol == "USD₮" }) {
                 state.tokens.append(MockTokenBalance.popularPresets[1])
             }
             if !state.tokens.contains(where: { $0.symbol.uppercased() == "TON" }) {
                 state.tokens.insert(MockTokenBalance.popularPresets[0], at: 0)
+            }
+            if let idx = state.tokens.firstIndex(where: { $0.symbol.uppercased() == "USDT" || $0.symbol == "USD₮" }) {
+                state.tokens[idx].symbol = "USD₮"
+                if state.tokens[idx].customPriceUSD == nil || state.tokens[idx].customPriceUSD == 1.0 {
+                    state.tokens[idx].customPriceUSD = 0.99
+                }
             }
             self.storedState = state
         } else {
@@ -198,11 +206,11 @@ public final class LocalMockStore: @unchecked Sendable {
             ),
             MockTokenBalance(
                 name: "Tether USD",
-                symbol: "USDT",
+                symbol: "USD₮",
                 address: JettonMasterAddress.tonUSDT.toRaw(),
                 fractionDigits: 6,
                 amount: whaleUsdt,
-                customPriceUSD: 1.0,
+                customPriceUSD: 0.99,
                 imageURL: "https://cache.tonapi.io/img/token/usdt.png"
             ),
         ]
@@ -295,7 +303,8 @@ public final class LocalMockStore: @unchecked Sendable {
         amount: Decimal,
         delaySeconds: TimeInterval,
         comment: String? = nil,
-        senderName: String? = nil
+        senderName: String? = nil,
+        senderAddress: String? = nil
     ) {
         let isTon = tokenSymbol.uppercased() == "TON"
         let displaySymbol = isTon ? "TON" : "USD₮"
@@ -303,7 +312,9 @@ public final class LocalMockStore: @unchecked Sendable {
         let fractionDigits = isTon ? 9 : 6
         let commentText = (comment?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false) ? "\n«\(comment!)»" : ""
         let title = senderName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? senderName! : "Tonkeeper"
-        let body = "Получено +\(amount) \(displaySymbol)\(commentText)"
+        let body = "Получено \(amount) \(displaySymbol)\(commentText)"
+        let rawSender = senderAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedSender = (rawSender?.isEmpty == false) ? rawSender! : "UQBx4a81Z9FjKl7n29_eL23xV87d890abcdefAliceTransfer"
 
         let content = UNMutableNotificationContent()
         content.title = title
@@ -325,17 +336,17 @@ public final class LocalMockStore: @unchecked Sendable {
                     self.storedState.tokens[idx].amount = current + amount
                 }
             } else {
-                if let idx = self.storedState.tokens.firstIndex(where: { $0.symbol.uppercased() == "USDT" }) {
+                if let idx = self.storedState.tokens.firstIndex(where: { $0.symbol.uppercased() == "USDT" || $0.symbol == "USD₮" }) {
                     self.storedState.tokens[idx].amount += amount
                 } else {
                     self.storedState.tokens.append(
                         MockTokenBalance(
                             name: "Tether USD",
-                            symbol: "USDT",
+                            symbol: "USD₮",
                             address: JettonMasterAddress.tonUSDT.toRaw(),
                             fractionDigits: 6,
                             amount: amount,
-                            customPriceUSD: 1.0,
+                            customPriceUSD: 0.99,
                             imageURL: "https://cache.tonapi.io/img/token/usdt.png"
                         )
                     )
@@ -344,11 +355,11 @@ public final class LocalMockStore: @unchecked Sendable {
 
             let newEvent = MockHistoryEvent(
                 type: .incoming,
-                tokenSymbol: isTon ? "TON" : "USDT",
+                tokenSymbol: isTon ? "TON" : "USD₮",
                 tokenAddress: tokenAddress,
                 fractionDigits: fractionDigits,
                 amount: amount,
-                counterpartyAddress: "UQDFf1234567890abcdefAliceIncomingTransfer",
+                counterpartyAddress: resolvedSender,
                 comment: comment,
                 timestamp: Date(),
                 status: .success
@@ -440,13 +451,15 @@ public final class LocalMockStore: @unchecked Sendable {
             guard !seenAddresses.contains(jettonAddress) else { continue }
             seenAddresses.insert(jettonAddress)
 
+            let isUSDT = token.symbol.uppercased() == "USDT" || token.symbol == "USD₮"
             let tokenImageURL: URL? = {
                 if let raw = token.imageURL, let url = URL(string: raw) {
                     return url
                 }
-                switch token.symbol.uppercased() {
-                case "USDT":
+                if isUSDT {
                     return URL(string: "https://cache.tonapi.io/img/token/usdt.png")
+                }
+                switch token.symbol.uppercased() {
                 case "NOT":
                     return URL(string: "https://cache.tonapi.io/img/token/notcoin.png")
                 case "DOGS":
@@ -464,7 +477,7 @@ public final class LocalMockStore: @unchecked Sendable {
                 address: jettonAddress,
                 fractionDigits: token.fractionDigits,
                 name: token.name,
-                symbol: token.symbol,
+                symbol: isUSDT ? "USD₮" : token.symbol,
                 verification: .whitelist,
                 imageURL: tokenImageURL
             )
@@ -475,8 +488,9 @@ public final class LocalMockStore: @unchecked Sendable {
                    let found = ratesList.first(where: { $0.currency == currency }) {
                     return found
                 }
-                if token.symbol.uppercased() == "USDT" {
-                    return Rates.Rate(currency: currency, rate: 1.0, diff24h: "0.0%")
+                if isUSDT {
+                    let custom = token.customPriceUSD ?? 0.99
+                    return Rates.Rate(currency: currency, rate: custom, diff24h: "0.0%")
                 }
                 if let customPrice = token.customPriceUSD {
                     return Rates.Rate(currency: currency, rate: customPrice, diff24h: nil)
@@ -484,7 +498,7 @@ public final class LocalMockStore: @unchecked Sendable {
                 return nil
             }()
 
-            let price = rate?.rate ?? token.customPriceUSD ?? 0
+            let price = rate?.rate ?? token.customPriceUSD ?? (isUSDT ? 0.99 : 0)
             let converted = token.amount * price
             let rawQuantity = Self.decimalToBigUInt(token.amount, fractionDigits: token.fractionDigits)
 
@@ -494,7 +508,7 @@ public final class LocalMockStore: @unchecked Sendable {
                     jetton: jettonItem,
                     amount: rawQuantity,
                     fractionalDigits: token.fractionDigits,
-                    tag: nil,
+                    tag: isUSDT ? "TON" : nil,
                     currency: currency,
                     converted: converted,
                     price: price,
@@ -585,19 +599,21 @@ public final class LocalMockStore: @unchecked Sendable {
                 }
             } else {
                 let rawAmount = Self.decimalToBigUInt(mockEvent.amount, fractionDigits: mockEvent.fractionDigits)
+                let isEventUSDT = mockEvent.tokenSymbol.uppercased() == "USDT" || mockEvent.tokenSymbol == "USD₮"
                 let jettonAddress: Address = {
                     if let raw = mockEvent.tokenAddress, let addr = try? Address.parse(raw) {
                         return addr
                     }
-                    if mockEvent.tokenSymbol.uppercased() == "USDT" {
+                    if isEventUSDT {
                         return JettonMasterAddress.tonUSDT
                     }
                     return walletAddress
                 }()
                 let eventImageURL: URL? = {
-                    switch mockEvent.tokenSymbol.uppercased() {
-                    case "USDT":
+                    if isEventUSDT {
                         return URL(string: "https://cache.tonapi.io/img/token/usdt.png")
+                    }
+                    switch mockEvent.tokenSymbol.uppercased() {
                     case "NOT":
                         return URL(string: "https://cache.tonapi.io/img/token/notcoin.png")
                     case "DOGS":
@@ -614,8 +630,8 @@ public final class LocalMockStore: @unchecked Sendable {
                     hasCustomPayload: false,
                     address: jettonAddress,
                     fractionDigits: mockEvent.fractionDigits,
-                    name: mockEvent.tokenSymbol,
-                    symbol: mockEvent.tokenSymbol,
+                    name: isEventUSDT ? "Tether USD" : mockEvent.tokenSymbol,
+                    symbol: isEventUSDT ? "USD₮" : mockEvent.tokenSymbol,
                     verification: .whitelist,
                     imageURL: eventImageURL
                 )

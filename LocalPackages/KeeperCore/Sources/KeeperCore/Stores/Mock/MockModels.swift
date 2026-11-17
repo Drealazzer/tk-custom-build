@@ -107,11 +107,11 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
         ),
         MockTokenBalance(
             name: "Tether USD",
-            symbol: "USDT",
+            symbol: "USD₮",
             address: JettonMasterAddress.tonUSDT.toRaw(),
             fractionDigits: 6,
             amount: 1500,
-            customPriceUSD: 1.0,
+            customPriceUSD: 0.99,
             imageURL: "https://cache.tonapi.io/img/token/usdt.png"
         ),
     ]
