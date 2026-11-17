@@ -37,8 +37,11 @@ public struct TKRemoteImage<Placeholder: View, Failure: View>: View {
         @ViewBuilder placeholder: @escaping () -> Placeholder,
         @ViewBuilder failure: @escaping () -> Failure
     ) {
+        let source: Source = url.isFileURL
+            ? .provider(LocalFileImageDataProvider(fileURL: url))
+            : .network(url)
         self.init(
-            source: .network(url),
+            source: source,
             downsampleSize: downsampleSize,
             contentMode: contentMode,
             placeholder: placeholder,

@@ -178,13 +178,6 @@ final class MockNFTEditorViewController: UIViewController {
             contentStack.addArrangedSubview(descriptionContainer)
             contentStack.addArrangedSubview(collectionDescContainer)
             contentStack.addArrangedSubview(imageURLContainer)
-
-        case .genericNFT:
-            contentStack.addArrangedSubview(nameContainer)
-            contentStack.addArrangedSubview(collectionContainer)
-            contentStack.addArrangedSubview(imageURLContainer)
-            contentStack.addArrangedSubview(descriptionContainer)
-            contentStack.addArrangedSubview(collectionDescContainer)
         }
     }
 
@@ -208,8 +201,6 @@ final class MockNFTEditorViewController: UIViewController {
                 if let text = usernameField.text, !text.isEmpty {
                     parseUsernameInput(text)
                 }
-            case .genericNFT:
-                break
             }
         }
     }
@@ -294,11 +285,7 @@ final class MockNFTEditorViewController: UIViewController {
         descriptionField.text = "An exclusive \(giftName) with unique appearance and charm."
         collectionDescField.text = "\(formattedCollection) is an exclusive NFT collection by Telegram. Owners can showcase these unique gifts on Telegram."
 
-        currentAttributes = [
-            MockNFTAttribute(key: "Model", value: baseName),
-            MockNFTAttribute(key: "Number", value: numberStr),
-            MockNFTAttribute(key: "Availability", value: "1 of 100,000")
-        ]
+        currentAttributes = []
     }
 
     private func parseDNSInput(_ rawInput: String) {
@@ -311,34 +298,22 @@ final class MockNFTEditorViewController: UIViewController {
         nameField.text = text
         collectionField.text = "TON DNS Domains"
         collectionDescField.text = "*.ton domains"
-        descriptionField.text = "TON DNS domain name."
+        descriptionField.text = nil
 
-        currentAttributes = [
-            MockNFTAttribute(key: "Domain", value: text),
-            MockNFTAttribute(key: "Length", value: "\(text.count) characters"),
-            MockNFTAttribute(key: "Status", value: "Active")
-        ]
+        currentAttributes = []
     }
 
     private func parseUsernameInput(_ rawInput: String) {
-        var text = rawInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        if !text.hasPrefix("@") {
-            text = "@\(text)"
-        }
-        let clean = text.trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        let clean = rawInput.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "@ "))
+        guard !clean.isEmpty else { return }
 
-        nameField.text = text
+        nameField.text = "@\(clean)"
         collectionField.text = "Telegram Usernames"
         imageURLField.text = "https://nft.fragment.com/username/\(clean).webp"
-        descriptionField.text = "An exclusive Telegram username."
-        collectionDescField.text = "Telegram Usernames is an exclusive collection by Telegram. Owners can showcase these unique usernames on Telegram accounts, channels or groups, or trade them on Fragment."
+        descriptionField.text = "The @\(clean) username on Telegram.\nAliases: \(clean).t.me, t.me/\(clean)"
+        collectionDescField.text = "Unique addresses in Telegram's ecosystem of more than 700 million active users."
 
-        currentAttributes = [
-            MockNFTAttribute(key: "Type", value: "Username"),
-            MockNFTAttribute(key: "Handle", value: text),
-            MockNFTAttribute(key: "Length", value: "\(clean.count) characters")
-        ]
+        currentAttributes = []
     }
 
     @objc private func dismissKeyboard() {
@@ -370,14 +345,9 @@ final class MockNFTEditorViewController: UIViewController {
             }
             dns = raw
         case .telegramUsername:
-            var raw = usernameField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if raw.isEmpty {
-                raw = name
-            }
-            if !raw.hasPrefix("@") {
-                raw = "@\(raw)"
-            }
-            username = raw
+            let clean = (usernameField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? name).trimmingCharacters(in: CharacterSet(charactersIn: "@ "))
+            username = "@\(clean)"
+            dns = "\(clean).t.me"
         case .telegramGift:
             let raw = fragmentURLField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if raw.isEmpty {
@@ -385,8 +355,6 @@ final class MockNFTEditorViewController: UIViewController {
                 return
             }
             fragmentURL = raw
-        case .genericNFT:
-            break
         }
 
         let item = MockNFTItem(

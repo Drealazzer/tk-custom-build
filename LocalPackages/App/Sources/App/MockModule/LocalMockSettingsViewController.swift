@@ -275,8 +275,6 @@ extension LocalMockSettingsViewController: UITableViewDataSource, UITableViewDel
                     detail = nft.username ?? ""
                 case .telegramGift:
                     detail = nft.collectionName ?? "Telegram Gift"
-                case .genericNFT:
-                    detail = nft.collectionName ?? "NFT"
                 }
                 cell.detailTextLabel?.text = detail
                 cell.detailTextLabel?.textColor = .Text.secondary

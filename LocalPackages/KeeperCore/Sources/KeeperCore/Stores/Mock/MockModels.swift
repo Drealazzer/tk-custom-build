@@ -118,17 +118,15 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
 }
 
 @frozen public enum MockNFTType: String, Codable, Sendable, CaseIterable {
+    case telegramGift
     case tonDNS
     case telegramUsername
-    case telegramGift
-    case genericNFT
 
     public var title: String {
         switch self {
+        case .telegramGift: return "TG Gift"
         case .tonDNS: return "TON DNS"
         case .telegramUsername: return "Telegram Username"
-        case .telegramGift: return "TG Gift"
-        case .genericNFT: return "NFT"
         }
     }
 }

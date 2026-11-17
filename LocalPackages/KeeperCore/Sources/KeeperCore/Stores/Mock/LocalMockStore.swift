@@ -59,6 +59,13 @@ public final class LocalMockStore: @unchecked Sendable {
                     state.tokens[idx].customPriceUSD = 0.99
                 }
             }
+            for i in 0..<state.nfts.count {
+                if state.nfts[i].type == .tonDNS,
+                   let img = state.nfts[i].imageURL,
+                   img.contains("cache.tonapi.io/img/dns") {
+                    state.nfts[i].imageURL = nil
+                }
+            }
             self.storedState = state
         } else {
             self.storedState = Self.makeDefaultState()
@@ -243,13 +250,14 @@ public final class LocalMockStore: @unchecked Sendable {
             let padded = String((hexId + String(repeating: "0", count: 64)).prefix(64))
             guard let nftAddress = try? Address.parse(raw: "0:\(padded)") else { return nil }
 
+            let cleanUsername = (item.username ?? item.name).trimmingCharacters(in: CharacterSet(charactersIn: "@ "))
+
             let collectionName: String = {
                 if let name = item.collectionName, !name.isEmpty { return name }
                 switch item.type {
                 case .tonDNS: return "TON DNS Domains"
                 case .telegramUsername: return "Telegram Usernames"
                 case .telegramGift: return "Telegram Gifts"
-                case .genericNFT: return "NFT"
                 }
             }()
 
@@ -259,11 +267,9 @@ public final class LocalMockStore: @unchecked Sendable {
                 case .tonDNS:
                     return "*.ton domains"
                 case .telegramUsername:
-                    return "Telegram Usernames is an exclusive collection by Telegram. Owners can showcase these unique usernames on Telegram accounts, channels or groups, or trade them on Fragment."
+                    return "Unique addresses in Telegram's ecosystem of more than 700 million active users."
                 case .telegramGift:
                     return "\(collectionName) is an exclusive NFT collection by Telegram. Owners can showcase these unique gifts on Telegram."
-                case .genericNFT:
-                    return nil
                 }
             }()
 
@@ -278,13 +284,16 @@ public final class LocalMockStore: @unchecked Sendable {
 
             let previewURL: URL? = {
                 if item.type == .tonDNS {
-                    if let raw = item.imageURL, let url = URL(string: raw), !raw.isEmpty {
+                    if let raw = item.imageURL, !raw.contains("cache.tonapi.io/img/dns"), let url = URL(string: raw), !raw.isEmpty {
                         return url
                     }
                     return Self.generateTONDNSImageURL(domain: item.dns ?? item.name)
                 }
                 if let raw = item.imageURL, let url = URL(string: raw) {
                     return url
+                }
+                if item.type == .telegramUsername {
+                    return URL(string: "https://nft.fragment.com/username/\(cleanUsername).webp")
                 }
                 return nil
             }()
@@ -303,47 +312,33 @@ public final class LocalMockStore: @unchecked Sendable {
                 case .tonDNS:
                     return [NFT.Button(label: "Manage", style: "primary", url: URL(string: "https://dns.ton.org"))]
                 case .telegramUsername:
-                    let handle = (item.username ?? item.name).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
-                    return [NFT.Button(label: "View on Fragment", style: "secondary", url: URL(string: "https://fragment.com/username/\(handle)"))]
-                case .telegramGift, .genericNFT:
+                    return [NFT.Button(label: "Manage", style: "primary", url: URL(string: "https://fragment.com/username/\(cleanUsername)"))]
+                case .telegramGift:
                     return nil
                 }
             }()
 
-            let attributes: [NFT.Attribute] = {
-                if let attrs = item.attributes, !attrs.isEmpty {
-                    return attrs.map { NFT.Attribute(key: $0.key, value: $0.value) }
-                }
-                switch item.type {
-                case .tonDNS:
-                    let domainStr = item.dns ?? item.name
-                    return [
-                        NFT.Attribute(key: "Domain", value: domainStr),
-                        NFT.Attribute(key: "Length", value: "\(domainStr.count) characters"),
-                        NFT.Attribute(key: "Status", value: "Active")
-                    ]
-                case .telegramUsername:
-                    let userStr = item.username ?? item.name
-                    return [
-                        NFT.Attribute(key: "Type", value: "Username"),
-                        NFT.Attribute(key: "Handle", value: userStr),
-                        NFT.Attribute(key: "Length", value: "\(userStr.count) characters")
-                    ]
-                case .telegramGift, .genericNFT:
-                    return []
-                }
-            }()
+            let attributes: [NFT.Attribute] = []
 
             let nftDescription: String? = {
                 if let desc = item.description, !desc.isEmpty { return desc }
                 switch item.type {
                 case .tonDNS:
-                    return "TON DNS domain name."
+                    return nil
                 case .telegramUsername:
-                    return "An exclusive Telegram username."
+                    return "The @\(cleanUsername) username on Telegram.\nAliases: \(cleanUsername).t.me, t.me/\(cleanUsername)"
                 case .telegramGift:
                     return "\(item.name) collectible gift by Telegram."
-                case .genericNFT:
+                }
+            }()
+
+            let resolvedDNS: String? = {
+                switch item.type {
+                case .tonDNS:
+                    return item.dns ?? item.name
+                case .telegramUsername:
+                    return "\(cleanUsername).t.me"
+                case .telegramGift:
                     return nil
                 }
             }()
@@ -358,7 +353,7 @@ public final class LocalMockStore: @unchecked Sendable {
                 attributes: attributes,
                 collection: collection,
                 programmaticButtons: programmaticButtons,
-                dns: item.dns ?? (item.type == .tonDNS ? item.name : nil),
+                dns: resolvedDNS,
                 sale: nil,
                 trust: .whitelist,
                 renderType: nil,
@@ -372,7 +367,9 @@ public final class LocalMockStore: @unchecked Sendable {
         guard !clean.isEmpty else { return nil }
 
         let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
-        let fileURL = cachesDir.appendingPathComponent("ton_dns_\(clean).png")
+        try? FileManager.default.createDirectory(at: cachesDir, withIntermediateDirectories: true)
+        let safeName = clean.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: ":", with: "_")
+        let fileURL = cachesDir.appendingPathComponent("ton_dns_\(safeName).png")
 
         if FileManager.default.fileExists(atPath: fileURL.path) {
             return fileURL
@@ -579,16 +576,12 @@ public final class LocalMockStore: @unchecked Sendable {
                 name: "@investor",
                 collectionName: "Telegram Usernames",
                 imageURL: "https://nft.fragment.com/username/investor.webp",
-                dns: nil,
+                dns: "investor.t.me",
                 username: "@investor",
                 fragmentURL: nil,
-                description: "An exclusive Telegram username.",
-                collectionDescription: "Telegram Usernames is an exclusive collection by Telegram. Owners can showcase these unique usernames on Telegram accounts, channels or groups, or trade them on Fragment.",
-                attributes: [
-                    MockNFTAttribute(key: "Type", value: "Username"),
-                    MockNFTAttribute(key: "Handle", value: "@investor"),
-                    MockNFTAttribute(key: "Length", value: "8 characters")
-                ]
+                description: "The @investor username on Telegram.\nAliases: investor.t.me, t.me/investor",
+                collectionDescription: "Unique addresses in Telegram's ecosystem of more than 700 million active users.",
+                attributes: []
             ),
             MockNFTItem(
                 type: .tonDNS,
@@ -598,13 +591,9 @@ public final class LocalMockStore: @unchecked Sendable {
                 dns: "whale.ton",
                 username: nil,
                 fragmentURL: nil,
-                description: "TON DNS domain name.",
+                description: nil,
                 collectionDescription: "*.ton domains",
-                attributes: [
-                    MockNFTAttribute(key: "Domain", value: "whale.ton"),
-                    MockNFTAttribute(key: "Length", value: "9 characters"),
-                    MockNFTAttribute(key: "Status", value: "Active")
-                ]
+                attributes: []
             ),
             MockNFTItem(
                 type: .telegramGift,
@@ -614,15 +603,9 @@ public final class LocalMockStore: @unchecked Sendable {
                 dns: nil,
                 username: nil,
                 fragmentURL: "https://nft.fragment.com/gift/ResistanceDog-16789.tgs",
-                description: "An exclusive Resistance Dog with the appearance Hoodie on a Midnight Blue background.",
+                description: "An exclusive Resistance Dog with unique appearance and charm.",
                 collectionDescription: "Resistance Dogs is an exclusive NFT collection by Telegram. Owners can showcase these unique gifts on Telegram.",
-                attributes: [
-                    MockNFTAttribute(key: "Model", value: "Resistance Dog"),
-                    MockNFTAttribute(key: "Backdrop", value: "Midnight Blue"),
-                    MockNFTAttribute(key: "Symbol", value: "Hoodie"),
-                    MockNFTAttribute(key: "Number", value: "#16789"),
-                    MockNFTAttribute(key: "Availability", value: "1 of 25,000")
-                ]
+                attributes: []
             )
         ]
         lock.unlock()

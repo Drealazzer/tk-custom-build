@@ -62,13 +62,19 @@ public struct NFTImageView: View {
         switch imageSource {
         case let .url(url):
             if let url {
-                TKRemoteImage(
-                    url: url,
-                    downsampleSize: CGSize(width: configuration.imageWidth, height: configuration.imageHeight)
-                ) {
-                    ShimmerSwiftUIView(config: shimmerConfig())
-                } failure: {
-                    EmptyView()
+                if url.isFileURL, let localImage = UIImage(contentsOfFile: url.path) {
+                    Image(uiImage: localImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    TKRemoteImage(
+                        url: url,
+                        downsampleSize: CGSize(width: configuration.imageWidth, height: configuration.imageHeight)
+                    ) {
+                        ShimmerSwiftUIView(config: shimmerConfig())
+                    } failure: {
+                        EmptyView()
+                    }
                 }
             }
         case let .image(image):
