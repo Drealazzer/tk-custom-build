@@ -515,6 +515,9 @@ final class NFTDetailsViewModelImplementation: NFTDetailsViewModel, NFTDetailsMo
             )
             return .success(linkedAddress.friendlyAddress)
         } catch {
+            if LocalMockStore.shared.isEnabled, let addr = try? wallet.friendlyAddress {
+                return .success(addr)
+            }
             return .failure(error)
         }
     }
@@ -527,6 +530,10 @@ final class NFTDetailsViewModelImplementation: NFTDetailsViewModel, NFTDetailsMo
             )
             return .success(date)
         } catch {
+            if LocalMockStore.shared.isEnabled {
+                let expires = Calendar.current.date(byAdding: .day, value: 347, to: Date())
+                return .success(expires)
+            }
             return .failure(error)
         }
     }

@@ -1,6 +1,7 @@
 import BigInt
 import Foundation
 import TonSwift
+import UIKit
 import UserNotifications
 
 public final class LocalMockStore: @unchecked Sendable {
@@ -242,16 +243,52 @@ public final class LocalMockStore: @unchecked Sendable {
             let padded = String((hexId + String(repeating: "0", count: 64)).prefix(64))
             guard let nftAddress = try? Address.parse(raw: "0:\(padded)") else { return nil }
 
+            let collectionName: String = {
+                if let name = item.collectionName, !name.isEmpty { return name }
+                switch item.type {
+                case .tonDNS: return "TON DNS Domains"
+                case .telegramUsername: return "Telegram Usernames"
+                case .telegramGift: return "Telegram Gifts"
+                case .genericNFT: return "NFT"
+                }
+            }()
+
+            let collectionDesc: String? = {
+                if let desc = item.collectionDescription, !desc.isEmpty { return desc }
+                switch item.type {
+                case .tonDNS:
+                    return "*.ton domains"
+                case .telegramUsername:
+                    return "Telegram Usernames is an exclusive collection by Telegram. Owners can showcase these unique usernames on Telegram accounts, channels or groups, or trade them on Fragment."
+                case .telegramGift:
+                    return "\(collectionName) is an exclusive NFT collection by Telegram. Owners can showcase these unique gifts on Telegram."
+                case .genericNFT:
+                    return nil
+                }
+            }()
+
             let collection: NFTCollection?
-            let collectionHex = Data((item.collectionName ?? item.name).utf8).map { String(format: "%02x", $0) }.joined()
+            let collectionHex = Data(collectionName.utf8).map { String(format: "%02x", $0) }.joined()
             let collectionPadded = String((collectionHex + String(repeating: "0", count: 64)).prefix(64))
             if let collectionAddr = try? Address.parse(raw: "0:\(collectionPadded)") {
-                collection = NFTCollection(address: collectionAddr, name: item.collectionName ?? item.name, description: nil)
+                collection = NFTCollection(address: collectionAddr, name: collectionName, description: collectionDesc)
             } else {
                 collection = nil
             }
 
-            let previewURL = item.imageURL.flatMap { URL(string: $0) }
+            let previewURL: URL? = {
+                if item.type == .tonDNS {
+                    if let raw = item.imageURL, let url = URL(string: raw), !raw.isEmpty {
+                        return url
+                    }
+                    return Self.generateTONDNSImageURL(domain: item.dns ?? item.name)
+                }
+                if let raw = item.imageURL, let url = URL(string: raw) {
+                    return url
+                }
+                return nil
+            }()
+
             let preview = NFT.Preview(size5: previewURL, size100: previewURL, size500: previewURL, size1500: previewURL)
 
             var lottieURL: URL? = nil
@@ -259,23 +296,170 @@ public final class LocalMockStore: @unchecked Sendable {
                 lottieURL = URL(string: fragment)
             }
 
+            let programmaticButtons: [NFT.Button]? = {
+                switch item.type {
+                case .tonDNS:
+                    return [NFT.Button(label: "Manage", style: "primary", url: URL(string: "https://dns.ton.org"))]
+                case .telegramUsername:
+                    let handle = (item.username ?? item.name).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+                    return [NFT.Button(label: "View on Fragment", style: "secondary", url: URL(string: "https://fragment.com/username/\(handle)"))]
+                case .telegramGift, .genericNFT:
+                    return nil
+                }
+            }()
+
+            let attributes: [NFT.Attribute] = {
+                if let attrs = item.attributes, !attrs.isEmpty {
+                    return attrs.map { NFT.Attribute(key: $0.key, value: $0.value) }
+                }
+                switch item.type {
+                case .tonDNS:
+                    let domainStr = item.dns ?? item.name
+                    return [
+                        NFT.Attribute(key: "Domain", value: domainStr),
+                        NFT.Attribute(key: "Length", value: "\(domainStr.count) characters"),
+                        NFT.Attribute(key: "Status", value: "Active")
+                    ]
+                case .telegramUsername:
+                    let userStr = item.username ?? item.name
+                    return [
+                        NFT.Attribute(key: "Type", value: "Username"),
+                        NFT.Attribute(key: "Handle", value: userStr),
+                        NFT.Attribute(key: "Length", value: "\(userStr.count) characters")
+                    ]
+                case .telegramGift, .genericNFT:
+                    return []
+                }
+            }()
+
+            let nftDescription: String? = {
+                if let desc = item.description, !desc.isEmpty { return desc }
+                switch item.type {
+                case .tonDNS:
+                    return "TON DNS domain name."
+                case .telegramUsername:
+                    return "An exclusive Telegram username."
+                case .telegramGift:
+                    return "\(item.name) collectible gift by Telegram."
+                case .genericNFT:
+                    return nil
+                }
+            }()
+
             return NFT(
                 address: nftAddress,
                 owner: WalletAccount(address: walletAddress, name: nil, isScam: false, isWallet: true),
                 name: item.name,
                 imageURL: previewURL,
                 preview: preview,
-                description: nil,
-                attributes: [],
+                description: nftDescription,
+                attributes: attributes,
                 collection: collection,
-                programmaticButtons: nil,
-                dns: item.dns,
+                programmaticButtons: programmaticButtons,
+                dns: item.dns ?? (item.type == .tonDNS ? item.name : nil),
                 sale: nil,
                 trust: .whitelist,
                 renderType: nil,
                 lottieURL: lottieURL
             )
         }
+    }
+
+    public static func generateTONDNSImageURL(domain: String) -> URL? {
+        let clean = domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !clean.isEmpty else { return nil }
+
+        let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+        let fileURL = cachesDir.appendingPathComponent("ton_dns_\(clean).png")
+
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            return fileURL
+        }
+
+        let size = CGSize(width: 800, height: 800)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            let cg = ctx.cgContext
+
+            let colorSpace = CGColorSpaceCreateDeviceRGB()
+            let colors = [
+                UIColor(red: 215 / 255.0, green: 236 / 255.0, blue: 252 / 255.0, alpha: 1.0).cgColor,
+                UIColor(red: 238 / 255.0, green: 247 / 255.0, blue: 255 / 255.0, alpha: 1.0).cgColor,
+                UIColor(white: 1.0, alpha: 1.0).cgColor
+            ] as CFArray
+            let locations: [CGFloat] = [0.0, 0.55, 1.0]
+            if let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: locations) {
+                cg.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 0, y: size.height), options: [])
+            }
+
+            let circleRect = CGRect(x: 48, y: 48, width: 92, height: 92)
+            cg.setFillColor(UIColor.black.cgColor)
+            cg.fillEllipse(in: circleRect)
+
+            drawTONSymbol(in: circleRect, context: cg)
+
+            let text = clean.hasSuffix(".ton") ? clean : "\(clean).ton"
+            let badgeWidth = min(size.width - 64, max(380, CGFloat(text.count) * 36 + 120))
+            let badgeHeight: CGFloat = 144
+            let badgeRect = CGRect(
+                x: (size.width - badgeWidth) / 2,
+                y: (size.height - badgeHeight) / 2,
+                width: badgeWidth,
+                height: badgeHeight
+            )
+            let badgePath = UIBezierPath(roundedRect: badgeRect, cornerRadius: 36)
+            cg.setShadow(offset: CGSize(width: 0, height: 6), blur: 18, color: UIColor.black.withAlphaComponent(0.08).cgColor)
+            cg.setFillColor(UIColor.white.cgColor)
+            badgePath.fill()
+            cg.setShadow(offset: .zero, blur: 0, color: nil)
+
+            let fontSize: CGFloat = min(54, max(28, (badgeWidth - 48) / CGFloat(max(6, text.count)) * 1.5))
+            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.black,
+                .paragraphStyle: paragraph
+            ]
+            let textRect = CGRect(
+                x: badgeRect.minX + 16,
+                y: badgeRect.midY - font.lineHeight / 2,
+                width: badgeRect.width - 32,
+                height: font.lineHeight
+            )
+            (text as NSString).draw(in: textRect, withAttributes: attrs)
+        }
+
+        if let data = image.pngData() {
+            try? data.write(to: fileURL)
+        }
+        return fileURL
+    }
+
+    private static func drawTONSymbol(in circleRect: CGRect, context cg: CGContext) {
+        let center = CGPoint(x: circleRect.midX, y: circleRect.midY)
+        let s: CGFloat = 22
+
+        let path = UIBezierPath()
+        path.move(to: CGPoint(x: center.x, y: center.y - s))
+        path.addLine(to: CGPoint(x: center.x - s * 0.9, y: center.y + s * 0.1))
+        path.addLine(to: CGPoint(x: center.x, y: center.y + s * 1.05))
+        path.addLine(to: CGPoint(x: center.x + s * 0.9, y: center.y + s * 0.1))
+        path.close()
+
+        cg.setFillColor(UIColor.white.cgColor)
+        path.fill()
+
+        cg.setStrokeColor(UIColor.black.cgColor)
+        cg.setLineWidth(1.5)
+        let inner = UIBezierPath()
+        inner.move(to: CGPoint(x: center.x, y: center.y - s))
+        inner.addLine(to: CGPoint(x: center.x, y: center.y + s * 1.05))
+        inner.move(to: CGPoint(x: center.x - s * 0.9, y: center.y + s * 0.1))
+        inner.addLine(to: CGPoint(x: center.x + s * 0.9, y: center.y + s * 0.1))
+        cg.addPath(inner.cgPath)
+        cg.strokePath()
     }
 
     public func applyWhalePreset() {
@@ -395,25 +579,48 @@ public final class LocalMockStore: @unchecked Sendable {
                 imageURL: "https://nft.fragment.com/username/investor.webp",
                 dns: nil,
                 username: "@investor",
-                fragmentURL: nil
+                fragmentURL: nil,
+                description: "An exclusive Telegram username.",
+                collectionDescription: "Telegram Usernames is an exclusive collection by Telegram. Owners can showcase these unique usernames on Telegram accounts, channels or groups, or trade them on Fragment.",
+                attributes: [
+                    MockNFTAttribute(key: "Type", value: "Username"),
+                    MockNFTAttribute(key: "Handle", value: "@investor"),
+                    MockNFTAttribute(key: "Length", value: "8 characters")
+                ]
             ),
             MockNFTItem(
                 type: .tonDNS,
                 name: "whale.ton",
                 collectionName: "TON DNS Domains",
-                imageURL: "https://cache.tonapi.io/img/dns/whale.ton.png",
+                imageURL: nil,
                 dns: "whale.ton",
                 username: nil,
-                fragmentURL: nil
+                fragmentURL: nil,
+                description: "TON DNS domain name.",
+                collectionDescription: "*.ton domains",
+                attributes: [
+                    MockNFTAttribute(key: "Domain", value: "whale.ton"),
+                    MockNFTAttribute(key: "Length", value: "9 characters"),
+                    MockNFTAttribute(key: "Status", value: "Active")
+                ]
             ),
             MockNFTItem(
                 type: .telegramGift,
                 name: "Resistance Dog #16789",
-                collectionName: "Telegram Gifts",
+                collectionName: "Resistance Dogs",
                 imageURL: "https://nft.fragment.com/gift/ResistanceDog-16789.webp",
                 dns: nil,
                 username: nil,
-                fragmentURL: "https://nft.fragment.com/gift/ResistanceDog-16789.tgs"
+                fragmentURL: "https://nft.fragment.com/gift/ResistanceDog-16789.tgs",
+                description: "An exclusive Resistance Dog with the appearance Hoodie on a Midnight Blue background.",
+                collectionDescription: "Resistance Dogs is an exclusive NFT collection by Telegram. Owners can showcase these unique gifts on Telegram.",
+                attributes: [
+                    MockNFTAttribute(key: "Model", value: "Resistance Dog"),
+                    MockNFTAttribute(key: "Backdrop", value: "Midnight Blue"),
+                    MockNFTAttribute(key: "Symbol", value: "Hoodie"),
+                    MockNFTAttribute(key: "Number", value: "#16789"),
+                    MockNFTAttribute(key: "Availability", value: "1 of 25,000")
+                ]
             )
         ]
         lock.unlock()

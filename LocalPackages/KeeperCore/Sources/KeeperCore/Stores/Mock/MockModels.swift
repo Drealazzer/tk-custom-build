@@ -133,6 +133,16 @@ public struct MockTokenBalance: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+public struct MockNFTAttribute: Codable, Sendable, Equatable {
+    public var key: String
+    public var value: String
+
+    public init(key: String, value: String) {
+        self.key = key
+        self.value = value
+    }
+}
+
 public struct MockNFTItem: Codable, Sendable, Identifiable, Equatable {
     public let id: String
     public var type: MockNFTType
@@ -142,6 +152,10 @@ public struct MockNFTItem: Codable, Sendable, Identifiable, Equatable {
     public var dns: String?
     public var username: String?
     public var fragmentURL: String?
+    public var description: String?
+    public var collectionDescription: String?
+    public var attributes: [MockNFTAttribute]?
+    public var expiresDays: Int?
 
     public init(
         id: String = UUID().uuidString,
@@ -151,7 +165,11 @@ public struct MockNFTItem: Codable, Sendable, Identifiable, Equatable {
         imageURL: String? = nil,
         dns: String? = nil,
         username: String? = nil,
-        fragmentURL: String? = nil
+        fragmentURL: String? = nil,
+        description: String? = nil,
+        collectionDescription: String? = nil,
+        attributes: [MockNFTAttribute]? = nil,
+        expiresDays: Int? = 347
     ) {
         self.id = id
         self.type = type
@@ -161,5 +179,9 @@ public struct MockNFTItem: Codable, Sendable, Identifiable, Equatable {
         self.dns = dns
         self.username = username
         self.fragmentURL = fragmentURL
+        self.description = description
+        self.collectionDescription = collectionDescription
+        self.attributes = attributes
+        self.expiresDays = expiresDays
     }
 }
